@@ -1,0 +1,33 @@
+{
+  "name": "multilingual-pronunciation-dictionary",
+  "version": "1.0.0",
+  "description": "Pronunciation dictionaries for several languages, based on Wiktionary data.",
+  "repository": "https://github.com/DanielSWolf/multilingual-pronunciation-dictionary.git",
+  "author": "Daniel Wolf <dwolf@dannad.de>",
+  "license": "MIT",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "sucrase-node build/build.ts"
+  },
+  "devDependencies": {
+    "@cospired/i18n-iso-languages": "^2.1.2",
+    "@types/common-tags": "^1.8.0",
+    "@types/download": "^6.2.4",
+    "@types/fs-extra": "^9.0.1",
+    "@types/lodash": "^4.14.161",
+    "@types/object-inspect": "^1.6.1",
+    "@types/pretty": "^2.0.0",
+    "@types/progress": "^2.0.3",
+    "@types/sax": "^1.2.1",
+    "common-tags": "^1.8.0",
+    "download": "^8.0.0",
+    "fs-extra": "^9.0.1",
+    "lodash": "^4.17.20",
+    "object-inspect": "^1.8.0",
+    "pretty": "^2.0.0",
+    "sax": "^1.2.4",
+    "stream-progressbar": "^1.4.0",
+    "sucrase": "^3.15.0",
+    "unbzip2-stream": "^1.4.3"
+  }
+}
