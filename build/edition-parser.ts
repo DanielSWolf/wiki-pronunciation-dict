@@ -28,9 +28,10 @@ export async function parseWiktionaryEdition<TEdition extends Edition>(edition: 
     if (isEqual(openTags, ['mediawiki', 'page', 'title'])) {
       currentTitle = text;
     } else if (isEqual(openTags, ['mediawiki', 'page', 'revision', 'text'])) {
-      if (!currentTitle || currentTitle.startsWith('Wiktionary:')) {
-        return;
-      }
+      if (!currentTitle) return;
+      if (currentTitle.includes(':')) return; // special page
+      if (currentTitle.includes(' ')) return; // multi-word entry
+
       const page: Page<TEdition> = { edition: edition, name: currentTitle, text };
       for (const result of parsePage(page)) {
         parseResults.push(result);
