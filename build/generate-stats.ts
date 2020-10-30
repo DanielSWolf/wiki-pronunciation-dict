@@ -15,7 +15,7 @@ interface EditionRecord {
   errorGroups: DefaultMap<string, ParseError[]>;
 }
 
-export function createStats(parseResults: ParseResult[]) {
+export function generateStats(parseResults: ParseResult[]) {
   const stats = new DefaultMap<Edition, EditionRecord>(() => ({
     rawPronunciationCounts: new DefaultMap<Language, number>(() => 0),
     errorGroups: new DefaultMap<string, ParseError[]>(() => []),
