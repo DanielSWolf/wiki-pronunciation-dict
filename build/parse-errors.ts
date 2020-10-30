@@ -6,6 +6,20 @@ export interface ParseError {
   data?: any;
 }
 
+export function unexpectedLanguageLineFormatError(line: Line): ParseError {
+  return {
+    line,
+    code: 'unexpected-language-line-format',
+  }
+}
+
+export function mismatchingRedundantWordInfoError(line: Line): ParseError {
+  return {
+    line,
+    code: 'mismatching-redundant-word-info',
+  }
+}
+
 export function unsupportedLanguageNameError(languageName: string, line: Line): ParseError {
   return {
     line,
@@ -14,10 +28,10 @@ export function unsupportedLanguageNameError(languageName: string, line: Line): 
   }
 }
 
-export function missingLanguageBeforePronunciationError(line: Line): ParseError {
+export function pronunciationOutsideOfLanguageSectionError(line: Line): ParseError {
   return {
     line,
-    code: 'missing-language-before-pronunciation',
+    code: 'pronunciation-outside-of-language-section',
   }
 }
 
@@ -33,5 +47,12 @@ export function unexpectedTemplateArgumentCountError(args: string[], line: Line)
     line,
     code: 'unexpected-template-argument-count',
     data: args,
+  }
+}
+
+export function pronunciationOutsideOfPronunciationBlockError(line: Line): ParseError {
+  return {
+    line,
+    code: 'pronunciation-outside-of-pronunciation-block',
   }
 }

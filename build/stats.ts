@@ -3,10 +3,10 @@ import { join as joinPaths } from 'path';
 import { orderBy } from 'lodash';
 import pretty from 'pretty';
 import inspect from 'object-inspect';
-import { stripIndents } from 'common-tags';
+import { stripIndents, safeHtml } from 'common-tags';
 import { Edition, editionToString } from "./editions";
 import { Language } from "./language";
-import { ParseResult } from "./page-parser";
+import { isParseError, ParseResult } from "./page-parser";
 import { ParseError } from "./parse-errors";
 import { DefaultMap } from "./utils";
 
@@ -22,7 +22,7 @@ export function createStats(parseResults: ParseResult[]) {
   }));
 
   for (const result of parseResults) {
-    if ('code' in result) {
+    if (isParseError(result)) {
       // Result is error
       stats.get(result.line.edition).errorGroups.get(result.code).push(result);
     } else {
@@ -93,7 +93,7 @@ export function createStats(parseResults: ParseResult[]) {
             </tr>
             ${
               orderBy(errors, [error => inspect(error.data), error => error.line.pageName, error => error.line.index])
-                .map(error => stripIndents`
+                .map(error => safeHtml`
                   <tr>
                     <td><p class="text-monospace">${error.data !== undefined ? inspect(error.data) : ''}</p></td>
                     <td><a href="https://${error.line.edition}.wiktionary.org/wiki/${error.line.pageName}">${error.line.pageName}</a></td>

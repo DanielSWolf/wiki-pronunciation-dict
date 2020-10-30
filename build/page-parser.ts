@@ -15,6 +15,10 @@ export interface WordPronunciation {
 
 export type ParseResult = WordPronunciation | ParseError;
 
+export function isParseError(parseResult: ParseResult): parseResult is ParseError {
+  return 'code' in parseResult;
+}
+
 /** A Wiktionary page from a specific edition */
 export interface Page<TEdition extends Edition> {
   edition: TEdition;
@@ -32,6 +36,39 @@ export interface Line {
 
   /** The line text */
   text: string;
+}
+
+export interface Heading extends Line {
+  level: number;
+  title: string;
+}
+
+export function isHeading(line: Heading | Line): line is Heading {
+  return 'level' in line;
+}
+
+export function* parseWikitext(page: Page<Edition>): Iterable<Heading | Line> {
+  for (const line of splitIntoLines(page)) {
+    const isHeading = line.text.startsWith('=') && line.text.endsWith('=');
+    yield isHeading ? getHeading(line) : line;
+  }
+}
+
+function getHeading(line: Line): Heading {
+  const maxLevel = Math.floor((line.text.length - 1) / 2);
+  let level = 0;
+  while (line.text[level] === '='
+    && line.text[line.text.length - 1 - level] === '='
+    && level + 1 < maxLevel
+  ) {
+    level++;
+  }
+
+  const title = line.text
+    .substring(level, line.text.length - level)
+    .trim();
+
+  return { ...line, level, title };
 }
 
 export function splitIntoLines<TEdition extends Edition>(page: Page<TEdition>): Line[] {

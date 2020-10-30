@@ -1,11 +1,14 @@
 import { getAlpha2Code } from '@cospired/i18n-iso-languages';
 import { Language } from "./language";
-import { PageParser, splitIntoLines, findTemplates, findLastTemplate } from "./page-parser";
+import { PageParser, findTemplates, parseWikitext, isHeading } from "./page-parser";
 import {
-  missingLanguageBeforePronunciationError,
+  unexpectedLanguageLineFormatError,
+  mismatchingRedundantWordInfoError,
+  pronunciationOutsideOfLanguageSectionError,
   unexpectedPronunciationLineFormatError,
   unexpectedTemplateArgumentCountError,
   unsupportedLanguageNameError,
+  pronunciationOutsideOfPronunciationBlockError,
 } from "./parse-errors";
 
 const backupLanguages = new Map<string, Language>([
@@ -68,44 +71,67 @@ function parseGermanLanguageName(languageName: string): Language | null {
 }
 
 export const parseGerman: PageParser<'de'> = function*(page) {
-  const UninitializedLanguage = Symbol();
-  const UnknownLanguage = Symbol();
+  const Invalid = Symbol();
 
-  let language: Language | typeof UninitializedLanguage | typeof UnknownLanguage = UninitializedLanguage;
+  let language: Language | null | typeof Invalid = null;
+  let inPronunciationBlock = false;
 
-  for (const line of splitIntoLines(page)) {
-    // Parse language information
-    const languageTemplate = findLastTemplate('Sprache', line.text);
-    if (languageTemplate) {
-      if (languageTemplate.length !== 1) {
-        yield unexpectedTemplateArgumentCountError(languageTemplate, line);
-        language = UnknownLanguage;
-      } else {
-        const languageName = languageTemplate[0];
-        if (ignoredLanguageNames.has(languageName.toLowerCase())) {
-          language = UnknownLanguage;
+  for (const line of parseWikitext(page)) {
+    if (isHeading(line)) {
+      // heading
+
+      inPronunciationBlock = false;
+
+      if (line.level === 2) {
+        // expecting word (redundantly) and language
+
+        language = Invalid;
+
+        const regex = /^(.+)\(\{\{Sprache\|([^}]+)\}\}\)$/;
+        const match = line.title.match(regex);
+        if (!match) {
+          yield unexpectedLanguageLineFormatError(line);
         } else {
-          language = parseGermanLanguageName(languageName) ?? UnknownLanguage;
-          if (language === UnknownLanguage) {
-            yield unsupportedLanguageNameError(languageName, line);
+          const redundantWord = match[1].trim();
+          if (redundantWord !== page.name) {
+            yield mismatchingRedundantWordInfoError(line);
+          } else {
+            const languageName = match[2].trim();
+            if (!ignoredLanguageNames.has(languageName.toLowerCase())) {
+              const newLanguage = parseGermanLanguageName(languageName);
+              if (newLanguage === null) {
+                yield unsupportedLanguageNameError(languageName, line);
+              } else {
+                language = newLanguage;
+              }
+            }
           }
         }
       }
-    }
+    } else {
+      // content line
 
-    // Parse pronunciation information
-    const pronunciationTemplates = findTemplates('Lautschrift', line.text);
-    if (pronunciationTemplates.length > 0) {
-      // Check that line adheres to expected format
-      const regex = /^:\{\{IPA\}\} \{\{Lautschrift|[^}]+\}\}(, \{\{Lautschrift|[^}]+\}\})*$/;
-      if (!regex.test(line.text)) {
-        yield unexpectedPronunciationLineFormatError(line);
-      } else {
-        if (language === UninitializedLanguage) {
-          yield missingLanguageBeforePronunciationError(line);
-        } else if (language === UnknownLanguage) {
-          // No need to yield a second error
+      if (line.text === '{{Aussprache}}') {
+        inPronunciationBlock = true;
+      } else if (!line.text.startsWith(':')) {
+        inPronunciationBlock = false;
+      }
+
+      // Parse pronunciation information
+      if (line.text.includes('{{Lautschrift')) {
+        if (!inPronunciationBlock) {
+          yield pronunciationOutsideOfPronunciationBlockError(line);
+        } else if (language === null) {
+          yield pronunciationOutsideOfLanguageSectionError(line);
+        } else if (language === Invalid) {
+          // No need to yield another error
+        } else if (!line.text.startsWith(':{{IPA}}')) {
+          yield unexpectedPronunciationLineFormatError(line);
         } else {
+          // Stop parsing the line once pronunciations get prefixed with qualifiers such as "plural"
+          const unqualifiedText = line.text.match(/:\{\{IPA\}\}\s*(\{\{Lautschrift\|.*?\}\},?\s*)*/)?.[0] ?? '';
+          const pronunciationTemplates = findTemplates('Lautschrift', unqualifiedText);
+
           for (const template of pronunciationTemplates) {
             if (template.length !== 1) {
               yield unexpectedTemplateArgumentCountError(template, line)
