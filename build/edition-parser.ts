@@ -1,4 +1,4 @@
-import { createStream as createXmlStream } from 'sax';
+import { Saxophone } from 'saxophone-ts';
 import { createReadStream, statSync } from 'fs-extra';
 import streamProgressbar from 'stream-progressbar';
 import { isEqual } from 'lodash';
@@ -16,16 +16,21 @@ const pageParsers: { [edition in Edition]: PageParser<edition> } = {
 export async function parseWiktionaryEdition<TEdition extends Edition>(edition: TEdition): Promise<ParseResult[]> {
   const parsePage = pageParsers[edition] as PageParser<TEdition>;
 
-  const xmlStream = createXmlStream(/* strict: */ true);
+  const xmlStream = new Saxophone();
   const openTags: string[] = []; // A stack of all open tags
   let currentTitle: string | null = null;
   const parseResults: ParseResult[] = [];
 
-  xmlStream.on('opentag', tag => openTags.push(tag.name));
+  xmlStream.on('tagOpen', tagNode => {
+    if (tagNode.isSelfClosing) return;
 
-  xmlStream.on('closetag', () => openTags.pop());
+    openTags.push(tagNode.name);
+  });
 
-  xmlStream.on('text', text => {
+  xmlStream.on('tagClose', () => openTags.pop());
+
+  xmlStream.on('text', textNode => {
+    const text = textNode.contents;
     if (isEqual(openTags, ['mediawiki', 'page', 'title'])) {
       currentTitle = text;
     } else if (isEqual(openTags, ['mediawiki', 'page', 'revision', 'text'])) {
@@ -45,7 +50,7 @@ export async function parseWiktionaryEdition<TEdition extends Edition>(edition: 
 
   fileStream
     .pipe(streamProgressbar(':bar :percent parsed (:etas remaining)', { total: statSync(xmlFilePath).size }))
-    .pipe(xmlStream);
+    .pipe(xmlStream as any);
 
   await new Promise((resolve, reject) => fileStream.on('close', resolve).on('error', reject));
 
