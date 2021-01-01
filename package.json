@@ -7,7 +7,8 @@
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {
-    "build": "sucrase-node build/build.ts"
+    "build": "node --require sucrase/register build/build.ts",
+    "build:prof": "node --prof --require sucrase/register build/build.ts"
   },
   "devDependencies": {
     "@cospired/i18n-iso-languages": "^2.1.2",
