@@ -12,7 +12,10 @@
                 "<node_internals>/**",
                 "${workspaceFolder}/node_modules/**"
             ],
-            "runtimeArgs": ["--require", "sucrase/register"],
+            "runtimeArgs": [
+              "--require", "sucrase/register",
+              "--max-old-space-size", "8192"
+            ],
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}\\build\\build.ts"
         }
