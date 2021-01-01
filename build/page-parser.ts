@@ -87,7 +87,8 @@ export function findTemplates(templateName: string, text: string): TemplateArgs[
   return [...matches].map(match => {
     const templateArgs = match[1]
       .split('|')
-      .map(argument => argument.trim());
+      .map(argument => argument.trim())
+      .filter(argument => !/^\w+=/.test(argument)); // Omit named arguments
     return templateArgs;
   })
 }

@@ -6,10 +6,11 @@ import { Edition } from './editions';
 import { Page, PageParser, ParseResult } from './page-parser';
 import { getWiktionaryXmlFilePath } from './wiktionary-download';
 import { parseGerman } from './page-parser-de';
+import { parseEnglish } from './page-parser-en';
 
 const pageParsers: { [edition in Edition]: PageParser<edition> } = {
   'de': parseGerman,
-  'en': () => ([]), // TODO: Implement
+  'en': parseEnglish,
 } as const;
 
 export async function parseWiktionaryEdition<TEdition extends Edition>(edition: TEdition): Promise<ParseResult[]> {

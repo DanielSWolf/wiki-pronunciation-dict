@@ -8,7 +8,7 @@ import {
   unexpectedPronunciationLineFormatError,
   unexpectedTemplateArgumentCountError,
   unsupportedLanguageNameError,
-  pronunciationOutsideOfPronunciationBlockError,
+  pronunciationOutsideOfPronunciationSectionError,
 } from "./parse-errors";
 
 const backupLanguages = new Map<string, Language>([
@@ -120,7 +120,7 @@ export const parseGerman: PageParser<'de'> = function*(page) {
       // Parse pronunciation information
       if (line.text.includes('{{Lautschrift')) {
         if (!inPronunciationBlock) {
-          yield pronunciationOutsideOfPronunciationBlockError(line);
+          yield pronunciationOutsideOfPronunciationSectionError(line);
         } else if (language === null) {
           yield pronunciationOutsideOfLanguageSectionError(line);
         } else if (language === Invalid) {
@@ -139,7 +139,7 @@ export const parseGerman: PageParser<'de'> = function*(page) {
               const pronunciation = template[0];
               if (pronunciation.length > 0) {
                 // Some articles contain empty pronunciation placeholders
-                yield { sourceEdition: 'de', language: language, word: page.name, pronunciation: pronunciation };
+                yield { sourceEdition: 'de', language: language, word: page.name, pronunciation };
               }
             }
           }

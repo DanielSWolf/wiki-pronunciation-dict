@@ -28,6 +28,14 @@ export function unsupportedLanguageNameError(languageName: string, line: Line): 
   }
 }
 
+export function unsupportedLanguageCodeError(languageCode: string, line: Line): ParseError {
+  return {
+    line,
+    code: 'unsupported-language-code',
+    data: languageCode,
+  }
+}
+
 export function pronunciationOutsideOfLanguageSectionError(line: Line): ParseError {
   return {
     line,
@@ -50,9 +58,9 @@ export function unexpectedTemplateArgumentCountError(args: string[], line: Line)
   }
 }
 
-export function pronunciationOutsideOfPronunciationBlockError(line: Line): ParseError {
+export function pronunciationOutsideOfPronunciationSectionError(line: Line): ParseError {
   return {
     line,
-    code: 'pronunciation-outside-of-pronunciation-block',
+    code: 'pronunciation-outside-of-pronunciation-section',
   }
 }
