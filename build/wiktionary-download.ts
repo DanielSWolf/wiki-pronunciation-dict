@@ -18,10 +18,10 @@ async function getWiktionaryDownloadUrl(edition: Edition): Promise<string> {
   return `${baseUrl}/${artifactId}/${timestamp}/${artifactId}-${timestamp}-pages-articles.xml.bz2`;
 }
 
-const dataDir = 'data';
+const downloadsDir = 'downloads';
 
 function getXmlFilePath(edition: Edition): string {
-  return joinPaths(dataDir, `${edition}.xml`);
+  return joinPaths(downloadsDir, `${edition}.xml`);
 }
 
 function getTempFilePath(edition: Edition): string {
@@ -29,10 +29,10 @@ function getTempFilePath(edition: Edition): string {
 }
 
 async function downloadWiktionaryXmlFile(edition: Edition): Promise<void> {
-  console.log(`Downloading data for ${editionToString(edition)}.`);
+  console.log(`Downloading dump for ${editionToString(edition)}.`);
 
   const url = await getWiktionaryDownloadUrl(edition);
-  await ensureDir(dataDir);
+  await ensureDir(downloadsDir);
   const tempFilePath = getTempFilePath(edition);
   const stream = download(url)
     .pipe(streamProgressbar(':bar :percent downloaded (:etas remaining)'))
