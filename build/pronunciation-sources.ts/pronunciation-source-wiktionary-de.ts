@@ -1,6 +1,6 @@
 import { getAlpha2Code } from '@cospired/i18n-iso-languages';
-import { Language } from "./language";
-import { PageParser, findTemplates, parseWikitext, isHeading } from "./page-parser";
+import { Language } from "../language";
+import { findTemplates, parseWiktionaryPage, isHeading } from "../wiktionary/wiktionary-page-parser";
 import {
   unexpectedLanguageLineFormatError,
   mismatchingRedundantWordInfoError,
@@ -9,7 +9,11 @@ import {
   unexpectedTemplateArgumentCountError,
   unsupportedLanguageNameError,
   pronunciationOutsideOfPronunciationSectionError,
-} from "./parse-errors";
+} from "./pronunciation-retrieval-errors";
+import { WiktionaryEdition } from "../wiktionary/wiktionary-edition";
+import { PronunciationResultCallback, PronunciationSource } from "./pronunciation-source";
+import { parseWiktionaryDump, WiktionaryPage } from '../wiktionary/wiktionary-dump-parser';
+import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 
 const backupLanguages = new Map<string, Language>([
   // Workaround for https://github.com/cospired/i18n-iso-languages/issues/30
@@ -70,13 +74,15 @@ function parseGermanLanguageName(languageName: string): Language | null {
     ?? null;
 }
 
-export const parseGerman: PageParser<'de'> = function*(page) {
+function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: PronunciationResultCallback): void {
+  if (!pageTitleIsSingleWord(page.title)) return;
+
   const Invalid = Symbol();
 
   let language: Language | null | typeof Invalid = null;
   let inPronunciationBlock = false;
 
-  for (const line of parseWikitext(page)) {
+  for (const line of parseWiktionaryPage(page)) {
     if (isHeading(line)) {
       // heading
 
@@ -90,17 +96,17 @@ export const parseGerman: PageParser<'de'> = function*(page) {
         const regex = /^(.+)\(\{\{Sprache\|([^}]+)\}\}\)$/;
         const match = line.title.match(regex);
         if (!match) {
-          yield unexpectedLanguageLineFormatError(line);
+          onPronunciationResult(unexpectedLanguageLineFormatError(line));
         } else {
           const redundantWord = match[1].trim();
-          if (redundantWord !== page.name) {
-            yield mismatchingRedundantWordInfoError(line);
+          if (redundantWord !== page.title) {
+            onPronunciationResult(mismatchingRedundantWordInfoError(line));
           } else {
             const languageName = match[2].trim();
             if (!ignoredLanguageNames.has(languageName.toLowerCase())) {
               const newLanguage = parseGermanLanguageName(languageName);
               if (newLanguage === null) {
-                yield unsupportedLanguageNameError(languageName, line);
+                onPronunciationResult(unsupportedLanguageNameError(languageName, line));
               } else {
                 language = newLanguage;
               }
@@ -120,13 +126,13 @@ export const parseGerman: PageParser<'de'> = function*(page) {
       // Parse pronunciation information
       if (line.text.includes('{{Lautschrift')) {
         if (!inPronunciationBlock) {
-          yield pronunciationOutsideOfPronunciationSectionError(line);
+          onPronunciationResult(pronunciationOutsideOfPronunciationSectionError(line));
         } else if (language === null) {
-          yield pronunciationOutsideOfLanguageSectionError(line);
+          onPronunciationResult(pronunciationOutsideOfLanguageSectionError(line));
         } else if (language === Invalid) {
           // No need to yield another error
         } else if (!line.text.startsWith(':{{IPA}}')) {
-          yield unexpectedPronunciationLineFormatError(line);
+          onPronunciationResult(unexpectedPronunciationLineFormatError(line));
         } else {
           // Stop parsing the line once pronunciations get prefixed with qualifiers such as "plural"
           const unqualifiedText = line.text.match(/:\{\{IPA\}\}\s*(\{\{Lautschrift\|.*?\}\},?\s*)*/)?.[0] ?? '';
@@ -134,12 +140,12 @@ export const parseGerman: PageParser<'de'> = function*(page) {
 
           for (const template of pronunciationTemplates) {
             if (template.length !== 1) {
-              yield unexpectedTemplateArgumentCountError(template, line)
+              onPronunciationResult(unexpectedTemplateArgumentCountError(template, line));
             } else {
               const pronunciation = template[0];
               if (pronunciation.length > 0) {
                 // Some articles contain empty pronunciation placeholders
-                yield { sourceEdition: 'de', language: language, word: page.name, pronunciation };
+                onPronunciationResult({ sourceEdition: page.edition, language: language, word: page.title, pronunciation });
               }
             }
           }
@@ -147,4 +153,12 @@ export const parseGerman: PageParser<'de'> = function*(page) {
       }
     }
   }
-};
+}
+
+export const pronunciationSourceWiktionaryDe: PronunciationSource = {
+  name: 'German Wiktionary edition',
+  getPronunciations: onPronunciationResult => parseWiktionaryDump(
+    WiktionaryEdition.German,
+    page => getPronunciationsFromPage(page, onPronunciationResult),
+  ),
+}

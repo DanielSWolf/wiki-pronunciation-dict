@@ -1,13 +1,15 @@
 import { orderBy } from "lodash";
 import { Language } from "./language";
-import { isParseError, ParseResult } from "./page-parser";
-import { DefaultMap } from "./utils";
+import { isPronunciationRetrievalError, PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
+import { DefaultMap } from "./utils/default-map";
 
 export type MultiLangDictionary = ReadonlyMap<Language, SingleLangDictionary>;
 
-export type SingleLangDictionary = ReadonlyMap<string, string[]>;
+export type SingleLangDictionary = ReadonlyMap<string, PronunciationList>;
 
-export function createMultiLangDictionary(parseResults: ParseResult[]): MultiLangDictionary {
+export type PronunciationList = string[];
+
+export function createMultiLangDictionary(pronunciationResults: PronunciationResult[]): MultiLangDictionary {
   // Map from language to word to pronunciation to count (of that pronunciation)
   const languages = new DefaultMap<Language, DefaultMap<string, DefaultMap<string, number>>>(
     () => new DefaultMap<string, DefaultMap<string, number>>(
@@ -17,9 +19,9 @@ export function createMultiLangDictionary(parseResults: ParseResult[]): MultiLan
     ),
   );
 
-  // Transfer parse results to data structure
-  for (const result of parseResults) {
-    if (isParseError(result)) continue;
+  // Transfer pronunciation results to data structure
+  for (const result of pronunciationResults) {
+    if (isPronunciationRetrievalError(result)) continue;
 
     const wordPronunciations = languages.get(result.language).get(result.word);
     wordPronunciations.set(result.pronunciation, wordPronunciations.get(result.pronunciation) + 1);
@@ -45,7 +47,7 @@ function createSingleLangDict(
 function createPronunciationList(
   // Map from pronunciation to count (of that pronunciation)
   pronunciations: ReadonlyMap<string, number>,
-): string[] {
+): PronunciationList {
   return orderBy([...pronunciations], ([_, count]) => count, 'desc')
     .map(([pronunciation]) => pronunciation);
 }

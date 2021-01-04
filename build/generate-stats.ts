@@ -4,25 +4,25 @@ import { orderBy } from 'lodash';
 import pretty from 'pretty';
 import inspect from 'object-inspect';
 import { stripIndents, safeHtml } from 'common-tags';
-import { Edition, editionToString } from "./editions";
+import { WiktionaryEdition, wiktionaryEditionToString } from "./wiktionary/wiktionary-edition";
 import { Language } from "./language";
-import { isParseError, ParseResult } from "./page-parser";
-import { ParseError } from "./parse-errors";
-import { DefaultMap } from "./utils";
+import { isPronunciationRetrievalError, PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
+import { PronunciationRetrievalError } from "./pronunciation-sources.ts/pronunciation-retrieval-errors";
+import { DefaultMap } from "./utils/default-map";
 
 interface EditionRecord {
   rawPronunciationCounts: DefaultMap<Language, number>;
-  errorGroups: DefaultMap<string, ParseError[]>;
+  errorGroups: DefaultMap<string, PronunciationRetrievalError[]>;
 }
 
-export function generateStats(parseResults: ParseResult[]) {
-  const stats = new DefaultMap<Edition, EditionRecord>(() => ({
+export function generateStats(pronunciationResults: PronunciationResult[]) {
+  const stats = new DefaultMap<WiktionaryEdition, EditionRecord>(() => ({
     rawPronunciationCounts: new DefaultMap<Language, number>(() => 0),
-    errorGroups: new DefaultMap<string, ParseError[]>(() => []),
+    errorGroups: new DefaultMap<string, PronunciationRetrievalError[]>(() => []),
   }));
 
-  for (const result of parseResults) {
-    if (isParseError(result)) {
+  for (const result of pronunciationResults) {
+    if (isPronunciationRetrievalError(result)) {
       // Result is error
       stats.get(result.line.edition).errorGroups.get(result.code).push(result);
     } else {
@@ -92,11 +92,11 @@ export function generateStats(parseResults: ParseResult[]) {
               <th>MediaWiki code</th>
             </tr>
             ${
-              orderBy(errors, [error => inspect(error.data), error => error.line.pageName, error => error.line.index])
+              orderBy(errors, [error => inspect(error.data), error => error.line.pageTitle, error => error.line.index])
                 .map(error => safeHtml`
                   <tr>
                     <td><p class="text-monospace">${error.data !== undefined ? inspect(error.data) : ''}</p></td>
-                    <td><a href="https://${error.line.edition}.wiktionary.org/wiki/${error.line.pageName}">${error.line.pageName}</a></td>
+                    <td><a href="https://${error.line.edition}.wiktionary.org/wiki/${error.line.pageTitle}">${error.line.pageTitle}</a></td>
                     <td>${error.line.index + 1}</td>
                     <td><p class="text-monospace">${error.line.text}</p></td>
                   </tr>
@@ -108,7 +108,7 @@ export function generateStats(parseResults: ParseResult[]) {
       })
       .join('\n\n');
 
-    const title = `Statistics for ${editionToString(edition)}`;
+    const title = `Statistics for ${wiktionaryEditionToString(edition)}`;
 
     writeFileSync(joinPaths(statsDir, `${edition}-wiktionary.html`), pretty(`
       <!DOCTYPE html>

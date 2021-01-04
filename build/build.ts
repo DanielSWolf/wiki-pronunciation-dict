@@ -1,28 +1,30 @@
-import { editions, editionToString } from "./editions";
-import { parseWiktionaryEdition } from "./edition-parser";
-import { ParseResult } from "./page-parser";
 import { generateStats } from "./generate-stats";
 import { createMultiLangDictionary, MultiLangDictionary } from "./multi-lang-dictionary";
 import { generateSources } from './generate-sources';
+import { pronunciationSourceWiktionaryDe } from "./pronunciation-sources.ts/pronunciation-source-wiktionary-de";
+import { PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
+import { runAsyncMain } from "./utils/run-async-main";
 
 function omitSparseLanguages(multiLangDictionary: MultiLangDictionary): MultiLangDictionary {
   const minWordCount = 500;
   return new Map([...multiLangDictionary].filter(([_, words]) => words.size >= minWordCount));
 }
 
+const pronunciationSources = [
+  pronunciationSourceWiktionaryDe,
+]
+
 async function main() {
   try {
-    const parseResults: ParseResult[] = [];
-    for (const edition of editions) {
-      console.log(`Parsing ${editionToString(edition)}.`);
-      for (const result of await parseWiktionaryEdition(edition)) {
-        parseResults.push(result);
-      }
+    const pronunciationResults: PronunciationResult[] = [];
+    for (const pronunciationSource of pronunciationSources) {
+      console.log(`Loading pronunciations from ${pronunciationSource.name}.`);
+      await pronunciationSource.getPronunciations(result => pronunciationResults.push(result));
     }
 
-    generateStats(parseResults);
+    generateStats(pronunciationResults);
 
-    const multiLangDictionary = omitSparseLanguages(createMultiLangDictionary(parseResults));
+    const multiLangDictionary = omitSparseLanguages(createMultiLangDictionary(pronunciationResults));
 
     generateSources(multiLangDictionary);
   } catch (error) {
@@ -31,8 +33,4 @@ async function main() {
   }
 }
 
-// Prevent Node from exiting prematurely.
-// See https://stackoverflow.com/questions/46914025
-const maxInt32 = 2 ** 31 - 1;
-const timeoutId = setTimeout(() => {}, maxInt32);
-main().then(() => clearTimeout(timeoutId));
+runAsyncMain(main);
