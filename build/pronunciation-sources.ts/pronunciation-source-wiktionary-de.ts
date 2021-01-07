@@ -14,6 +14,7 @@ import { WiktionaryEdition } from "../wiktionary/wiktionary-edition";
 import { PronunciationResultCallback, PronunciationSource } from "./pronunciation-source";
 import { parseWiktionaryDump, WiktionaryPage } from '../wiktionary/wiktionary-dump-parser';
 import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
+import { decodeXML } from 'entities';
 
 const languageAliases = new Map<string, Language>([
   ['Thai', 'th'],               // alias for 'Thailändisch'
@@ -59,6 +60,14 @@ function parseGermanLanguageName(languageName: string): Language | null {
     ?? null;
 }
 
+function removeAccents(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function removeMarkup(value: string): string {
+  return decodeXML(value).replace(/®|\{\{\(R\)\}\}|\[|\]/g, '').trim();
+}
+
 function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: PronunciationResultCallback): void {
   if (!pageTitleIsSingleWord(page.title)) return;
 
@@ -84,7 +93,8 @@ function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: 
           onPronunciationResult(unexpectedLanguageLineFormatError(line));
         } else {
           const redundantWord = match[1].trim();
-          if (redundantWord !== page.title) {
+          if (removeMarkup(removeAccents(redundantWord)) !== removeAccents(page.title)) {
+            // The redundant word is fundamentally different from the page title
             onPronunciationResult(mismatchingRedundantWordInfoError(line));
           } else {
             const languageName = match[2].trim();
