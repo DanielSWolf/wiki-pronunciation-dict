@@ -11,7 +11,7 @@
     "build:prof": "node --prof --max-old-space-size=8192 --require sucrase/register build/build.ts"
   },
   "devDependencies": {
-    "@cospired/i18n-iso-languages": "^2.1.2",
+    "@cospired/i18n-iso-languages": "^2.2.0",
     "@types/common-tags": "^1.8.0",
     "@types/download": "^6.2.4",
     "@types/fs-extra": "^9.0.1",

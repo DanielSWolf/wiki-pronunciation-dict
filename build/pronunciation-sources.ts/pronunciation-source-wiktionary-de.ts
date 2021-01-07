@@ -15,26 +15,11 @@ import { PronunciationResultCallback, PronunciationSource } from "./pronunciatio
 import { parseWiktionaryDump, WiktionaryPage } from '../wiktionary/wiktionary-dump-parser';
 import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 
-const backupLanguages = new Map<string, Language>([
-  // Workaround for https://github.com/cospired/i18n-iso-languages/issues/30
-  ['Aserbaidschanisch', 'az'],
-  ['Haitianisch', 'ht'],
-  ['Ido', 'io'],
-  ['Indonesisch', 'id'],
-  ['Irisch', 'ga'],
-  ['Maori', 'mi'],
-  ['Mazedonisch', 'mk'],
-  ['Nauruisch', 'na'],
-  ['Panjabi', 'pa'],
-  ['Schottisch-gälisch', 'gd'],
-  ['Sesotho', 'st'],
-  ['Thai', 'th'],
-  ['Walisisch', 'cy'],
-
-  // Aliases
+const languageAliases = new Map<string, Language>([
+  ['Thai', 'th'],               // alias for 'Thailändisch'
   ['Neugriechisch', 'el'],      // alias for 'Griechisch'
   ['Pandschabi', 'pa'],         // alias for 'Panjabi'
-  ['Scots', 'en'],              // variaty of English
+  ['Scots', 'en'],              // variety of English
   ['Suaheli', 'sw'],            // alias for 'Swahili'
   ['Westfriesisch', 'fy'],      // alias for 'Friesisch'
 ].map(([name, language]) => [name.toLowerCase(), language]));
@@ -70,7 +55,7 @@ const ignoredLanguageNames = new Set<string>([
 
 function parseGermanLanguageName(languageName: string): Language | null {
   return getAlpha2Code(languageName, 'de')
-    ?? backupLanguages.get(languageName.toLowerCase())
+    ?? languageAliases.get(languageName.toLowerCase())
     ?? null;
 }
 
