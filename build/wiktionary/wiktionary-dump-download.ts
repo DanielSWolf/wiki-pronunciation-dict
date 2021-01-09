@@ -1,10 +1,9 @@
 import download from 'download';
-import unbzip2Stream from 'unbzip2-stream';
-import streamProgressbar from 'stream-progressbar';
-import { createWriteStream, ensureDir, existsSync, move } from 'fs-extra';
+import { existsSync } from 'fs-extra';
 import { join as joinPaths } from 'path';
 import { throwError } from '../utils/throw-error';
 import { WiktionaryEdition, wiktionaryEditionToString } from './wiktionary-edition';
+import { downloadBzip2Content } from '../utils/download-bzip2-content';
 
 async function getWiktionaryDownloadUrl(edition: WiktionaryEdition): Promise<string> {
   const baseUrl = 'https://dumps.wikimedia.org';
@@ -24,29 +23,12 @@ function getXmlFilePath(edition: WiktionaryEdition): string {
   return joinPaths(downloadsDir, `${edition}.xml`);
 }
 
-function getTempFilePath(edition: WiktionaryEdition): string {
-  return getXmlFilePath(edition) + '~';
-}
-
-async function downloadWiktionaryXmlFile(edition: WiktionaryEdition): Promise<void> {
-  console.log(`Downloading dump for ${wiktionaryEditionToString(edition)}.`);
-
-  const url = await getWiktionaryDownloadUrl(edition);
-  await ensureDir(downloadsDir);
-  const tempFilePath = getTempFilePath(edition);
-  const stream = download(url)
-    .pipe(streamProgressbar(':bar :percent downloaded (:etas remaining)'))
-    .pipe(unbzip2Stream())
-    .pipe(createWriteStream(tempFilePath));
-  await new Promise((resolve, reject) => stream.on('close', resolve).on('error', reject));
-
-  await move(tempFilePath, getXmlFilePath(edition));
-}
-
 export async function getWiktionaryDumpFilePath(edition: WiktionaryEdition): Promise<string> {
   const filePath = getXmlFilePath(edition);
   if (!existsSync(filePath)) {
-    await downloadWiktionaryXmlFile(edition);
+    console.log(`Downloading dump for ${wiktionaryEditionToString(edition)}.`);
+    const url = await getWiktionaryDownloadUrl(edition);
+    await downloadBzip2Content(url, getXmlFilePath(edition));
   }
 
   return filePath;
