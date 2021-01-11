@@ -14,10 +14,10 @@
             ],
             "runtimeArgs": [
               "--require", "sucrase/register",
-              "--max-old-space-size", "8192"
+              "--max-old-space-size=8192"
             ],
             "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}\\build\\build.ts"
+            "program": "${workspaceFolder}/build/build.ts"
         }
     ]
 }
