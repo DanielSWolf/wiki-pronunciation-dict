@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { decodeXML } from 'entities';
 import { WiktionaryEdition } from './wiktionary-edition';
 import { getWiktionaryDumpFilePath } from './wiktionary-dump-download';
+import { AsyncIterableAdapter } from '../utils/async-iterable-adapter';
 
 /** A Wiktionary page from a specific edition */
 export interface WiktionaryPage {
@@ -14,39 +15,46 @@ export interface WiktionaryPage {
 }
 
 /** Parses a MediaWiki dump file, calling a callback on each page. */
-export async function parseWiktionaryDump(edition: WiktionaryEdition, onPage: (page: WiktionaryPage) => void): Promise<void> {
-  const xmlStream = new Saxophone();
-  const openTags: string[] = []; // A stack of all open tags
-  let currentTitle: string | null = null;
+export function parseWiktionaryDump(edition: WiktionaryEdition): AsyncIterable<WiktionaryPage> {
+  const result = new AsyncIterableAdapter<WiktionaryPage>();
 
-  xmlStream.on('tagOpen', tagNode => {
-    if (!tagNode.isSelfClosing) {
-      openTags.push(tagNode.name);
-    }
-  });
+  (async () => {
+    const xmlStream = new Saxophone();
+    const openTags: string[] = []; // A stack of all open tags
+    let currentTitle: string | null = null;
 
-  xmlStream.on('tagClose', () => openTags.pop());
+    xmlStream.on('tagOpen', tagNode => {
+      if (!tagNode.isSelfClosing) {
+        openTags.push(tagNode.name);
+      }
+    });
 
-  xmlStream.on('text', textNode => {
-    const nodeText = decodeXML(textNode.contents);
-    if (isEqual(openTags, ['mediawiki', 'page', 'title'])) {
-      // We're in a page title element
-      currentTitle = nodeText;
-    } else if (isEqual(openTags, ['mediawiki', 'page', 'revision', 'text'])) {
-      // We're in a page text element
-      if (!currentTitle) return;
+    xmlStream.on('tagClose', () => openTags.pop());
 
-      const page: WiktionaryPage = { edition, title: currentTitle, text: nodeText };
-      onPage(page);
-    }
-  });
+    xmlStream.on('text', async textNode => {
+      const nodeText = decodeXML(textNode.contents);
+      if (isEqual(openTags, ['mediawiki', 'page', 'title'])) {
+        // We're in a page title element
+        currentTitle = nodeText;
+      } else if (isEqual(openTags, ['mediawiki', 'page', 'revision', 'text'])) {
+        // We're in a page text element
+        if (!currentTitle) return;
 
-  const dumpFilePath = await getWiktionaryDumpFilePath(edition);
-  const fileStream = createReadStream(dumpFilePath);
+        const page: WiktionaryPage = { edition, title: currentTitle, text: nodeText };
+        await result.signalValue(page);
+      }
+    });
 
-  fileStream
-    .pipe(streamProgressbar(':bar :percent processed (:etas remaining)', { total: statSync(dumpFilePath).size }))
-    .pipe(xmlStream as any);
+    const dumpFilePath = await getWiktionaryDumpFilePath(edition);
+    const fileStream = createReadStream(dumpFilePath);
 
-  await new Promise((resolve, reject) => fileStream.on('close', resolve).on('error', reject));
+    fileStream
+      .pipe(streamProgressbar(':bar :percent processed (:etas remaining)', { total: statSync(dumpFilePath).size }))
+      .pipe(xmlStream as any);
+
+    fileStream.on('close', async () => { await result.signalDone(); });
+    fileStream.on('error', async error => { await result.signalError(error); });
+  })();
+
+  return result;
 }

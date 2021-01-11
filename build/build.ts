@@ -19,13 +19,17 @@ async function main() {
     const pronunciationResults: PronunciationResult[] = [];
     for (const pronunciationSource of pronunciationSources) {
       console.log(`Loading pronunciations from ${pronunciationSource.name}.`);
-      await pronunciationSource.getPronunciations(result => pronunciationResults.push(result));
+      for await (const pronunciation of pronunciationSource.getPronunciations()) {
+        pronunciationResults.push(pronunciation);
+      }
     }
 
+    console.log('Generating statistics.');
     generateStats(pronunciationResults);
 
     const multiLangDictionary = omitSparseLanguages(createMultiLangDictionary(pronunciationResults));
 
+    console.log('Generating source files.');
     generateSources(multiLangDictionary);
   } catch (error) {
     console.error(error, error.stack);

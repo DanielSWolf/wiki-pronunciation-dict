@@ -16,9 +16,7 @@ export function isPronunciationRetrievalError(result: PronunciationResult): resu
   return 'code' in result;
 }
 
-export type PronunciationResultCallback = (pronunciationResult: PronunciationResult) => void;
-
 export interface PronunciationSource {
   name: string;
-  getPronunciations(onPronunciationResult: PronunciationResultCallback): Promise<void>;
+  getPronunciations(): AsyncIterable<PronunciationResult>;
 }

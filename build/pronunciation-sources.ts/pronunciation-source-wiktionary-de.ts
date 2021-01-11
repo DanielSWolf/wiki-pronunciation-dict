@@ -11,7 +11,7 @@ import {
   pronunciationOutsideOfPronunciationSectionError,
 } from "./pronunciation-retrieval-errors";
 import { WiktionaryEdition } from "../wiktionary/wiktionary-edition";
-import { PronunciationResultCallback, PronunciationSource } from "./pronunciation-source";
+import { PronunciationResult, PronunciationSource } from "./pronunciation-source";
 import { parseWiktionaryDump, WiktionaryPage } from '../wiktionary/wiktionary-dump-parser';
 import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 import { decodeXML } from 'entities';
@@ -68,7 +68,7 @@ function removeMarkup(value: string): string {
   return decodeXML(value).replace(/®|\{\{\(R\)\}\}|\[|\]/g, '').trim();
 }
 
-function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: PronunciationResultCallback): void {
+async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<PronunciationResult> {
   if (!pageTitleIsSingleWord(page.title)) return;
 
   const Invalid = Symbol();
@@ -90,18 +90,18 @@ function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: 
         const regex = /^(.+)\(\{\{Sprache\|([^}]+)\}\}\)$/;
         const match = line.title.match(regex);
         if (!match) {
-          onPronunciationResult(unexpectedLanguageLineFormatError(line));
+          yield unexpectedLanguageLineFormatError(line);
         } else {
           const redundantWord = match[1].trim();
           if (removeMarkup(removeAccents(redundantWord)) !== removeAccents(page.title)) {
             // The redundant word is fundamentally different from the page title
-            onPronunciationResult(mismatchingRedundantWordInfoError(line));
+            yield mismatchingRedundantWordInfoError(line);
           } else {
             const languageName = match[2].trim();
             if (!ignoredLanguageNames.has(languageName.toLowerCase())) {
               const newLanguage = parseGermanLanguageName(languageName);
               if (newLanguage === null) {
-                onPronunciationResult(unsupportedLanguageNameError(languageName, line));
+                yield unsupportedLanguageNameError(languageName, line);
               } else {
                 language = newLanguage;
               }
@@ -121,13 +121,13 @@ function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: 
       // Parse pronunciation information
       if (line.text.includes('{{Lautschrift')) {
         if (!inPronunciationBlock) {
-          onPronunciationResult(pronunciationOutsideOfPronunciationSectionError(line));
+          yield pronunciationOutsideOfPronunciationSectionError(line);
         } else if (language === null) {
-          onPronunciationResult(pronunciationOutsideOfLanguageSectionError(line));
+          yield pronunciationOutsideOfLanguageSectionError(line);
         } else if (language === Invalid) {
           // No need to yield another error
         } else if (!line.text.startsWith(':{{IPA}}')) {
-          onPronunciationResult(unexpectedPronunciationLineFormatError(line));
+          yield unexpectedPronunciationLineFormatError(line);
         } else {
           // Stop parsing the line once pronunciations get prefixed with qualifiers such as "plural"
           const unqualifiedText = line.text.match(/:\{\{IPA\}\}\s*(\{\{Lautschrift\|.*?\}\},?\s*)*/)?.[0] ?? '';
@@ -135,12 +135,12 @@ function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: 
 
           for (const template of pronunciationTemplates) {
             if (template.length !== 1) {
-              onPronunciationResult(unexpectedTemplateArgumentCountError(template, line));
+              yield unexpectedTemplateArgumentCountError(template, line);
             } else {
               const pronunciation = template[0];
               if (pronunciation.length > 0) {
                 // Some articles contain empty pronunciation placeholders
-                onPronunciationResult({ sourceEdition: page.edition, language: language, word: page.title, pronunciation });
+                yield { sourceEdition: page.edition, language: language, word: page.title, pronunciation };
               }
             }
           }
@@ -152,8 +152,9 @@ function getPronunciationsFromPage(page: WiktionaryPage, onPronunciationResult: 
 
 export const pronunciationSourceWiktionaryDe: PronunciationSource = {
   name: 'German Wiktionary edition',
-  getPronunciations: onPronunciationResult => parseWiktionaryDump(
-    WiktionaryEdition.German,
-    page => getPronunciationsFromPage(page, onPronunciationResult),
-  ),
+  getPronunciations: async function*() {
+    for await (const page of parseWiktionaryDump(WiktionaryEdition.German)) {
+      yield* getPronunciationsFromPage(page);
+    }
+  },
 }
