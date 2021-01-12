@@ -30,16 +30,19 @@ export function createMultiLangDictionary(pronunciationResults: PronunciationRes
   // Create output format
   return new Map(
     orderBy([...languages], ([_, words]) => words.size, 'desc')
-      .map(([language, words]) => [language, createSingleLangDict(words)]),
+      .map(([language, words]) => [language, createSingleLangDict(language, words)]),
   );
 }
 
 function createSingleLangDict(
+  language: string,
+
   // Map from word to pronunciation to count (of that pronunciation)
   words: ReadonlyMap<string, ReadonlyMap<string, number>>,
 ): SingleLangDictionary {
+  const collator = new Intl.Collator(language);
   return new Map(
-    [...words].sort(([a], [b]) => a.localeCompare(b, 'en'))
+    [...words].sort(([a], [b]) => collator.compare(a, b))
       .map(([word, pronunciations]) => [word, createPronunciationList(pronunciations)]),
   );
 }
