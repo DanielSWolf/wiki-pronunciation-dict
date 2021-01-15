@@ -4,6 +4,7 @@ import { join as joinPaths } from 'path';
 import { throwError } from '../utils/throw-error';
 import { WiktionaryEdition, wiktionaryEditionToString } from './wiktionary-edition';
 import { downloadBzip2Content } from '../utils/download-bzip2-content';
+import { downloadsDir } from '../directories';
 
 async function getWiktionaryDownloadUrl(edition: WiktionaryEdition): Promise<string> {
   const baseUrl = 'https://dumps.wikimedia.org';
@@ -17,8 +18,6 @@ async function getWiktionaryDownloadUrl(edition: WiktionaryEdition): Promise<str
   return `${baseUrl}/${artifactId}/${timestamp}/${artifactId}-${timestamp}-pages-articles.xml.bz2`;
 }
 
-const downloadsDir = 'downloads';
-
 function getXmlFilePath(edition: WiktionaryEdition): string {
   return joinPaths(downloadsDir, `${edition}.xml`);
 }
@@ -28,7 +27,7 @@ export async function getWiktionaryDumpFilePath(edition: WiktionaryEdition): Pro
   if (!existsSync(filePath)) {
     console.log(`Downloading dump for ${wiktionaryEditionToString(edition)}.`);
     const url = await getWiktionaryDownloadUrl(edition);
-    await downloadBzip2Content(url, getXmlFilePath(edition));
+    await downloadBzip2Content(url, filePath);
   }
 
   return filePath;
