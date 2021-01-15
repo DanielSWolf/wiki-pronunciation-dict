@@ -4,6 +4,7 @@ import { generateSources } from './generate-sources';
 import { pronunciationSourceWiktionaryDe } from "./pronunciation-sources.ts/pronunciation-source-wiktionary-de";
 import { PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
 import { runAsyncMain } from "./utils/run-async-main";
+import { wiktionaryEditionToString } from "./wiktionary/wiktionary-edition";
 
 function omitSparseLanguages(multiLangDictionary: MultiLangDictionary): MultiLangDictionary {
   const minWordCount = 500;
