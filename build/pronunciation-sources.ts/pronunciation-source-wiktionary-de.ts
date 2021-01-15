@@ -151,7 +151,7 @@ async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<P
 }
 
 export const pronunciationSourceWiktionaryDe: PronunciationSource = {
-  name: 'German Wiktionary edition',
+  edition: WiktionaryEdition.German,
   getPronunciations: async function*() {
     for await (const page of parseWiktionaryDump(WiktionaryEdition.German)) {
       yield* getPronunciationsFromPage(page);

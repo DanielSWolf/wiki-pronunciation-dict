@@ -17,6 +17,6 @@ export function isPronunciationRetrievalError(result: PronunciationResult): resu
 }
 
 export interface PronunciationSource {
-  name: string;
+  edition: WiktionaryEdition;
   getPronunciations(): AsyncIterable<PronunciationResult>;
 }

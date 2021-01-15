@@ -18,7 +18,7 @@ async function main() {
   try {
     const pronunciationResults: PronunciationResult[] = [];
     for (const pronunciationSource of pronunciationSources) {
-      console.log(`Loading pronunciations from ${pronunciationSource.name}.`);
+      console.log(`Loading pronunciations from ${wiktionaryEditionToString(pronunciationSource.edition)}.`);
       for await (const pronunciation of pronunciationSource.getPronunciations()) {
         pronunciationResults.push(pronunciation);
       }
