@@ -20,6 +20,7 @@
     "@types/pretty": "^2.0.0",
     "@types/progress": "^2.0.3",
     "@types/sax": "^1.2.1",
+    "@types/split2": "^2.1.6",
     "common-tags": "^1.8.0",
     "download": "^8.0.0",
     "entities": "^2.1.0",
@@ -29,6 +30,7 @@
     "pretty": "^2.0.0",
     "saxophone-ts": "^0.6.4",
     "semaphore-async-await": "^1.5.1",
+    "split2": "^3.2.2",
     "stream-progressbar": "^1.4.0",
     "sucrase": "^3.15.0",
     "unbzip2-stream": "^1.4.3"

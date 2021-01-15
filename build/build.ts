@@ -1,6 +1,7 @@
 import { generateStats } from "./generate-stats";
 import { createMultiLangDictionary, MultiLangDictionary } from "./multi-lang-dictionary";
 import { generateSources } from './generate-sources';
+import { pronunciationSourceWiktionaryEn } from "./pronunciation-sources.ts/pronunciation-source-wiktionary-en";
 import { pronunciationSourceWiktionaryDe } from "./pronunciation-sources.ts/pronunciation-source-wiktionary-de";
 import { PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
 import { runAsyncMain } from "./utils/run-async-main";
@@ -12,6 +13,7 @@ function omitSparseLanguages(multiLangDictionary: MultiLangDictionary): MultiLan
 }
 
 const pronunciationSources = [
+  pronunciationSourceWiktionaryEn,
   pronunciationSourceWiktionaryDe,
 ]
 
