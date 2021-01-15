@@ -34,13 +34,22 @@ export function createMultiLangDictionary(pronunciationResults: PronunciationRes
   );
 }
 
+function getCollator(language: string) {
+  try {
+    return new Intl.Collator(language);
+  } catch {
+    // Ignore invalid language codes
+    return new Intl.Collator();
+  }
+}
+
 function createSingleLangDict(
   language: string,
 
   // Map from word to pronunciation to count (of that pronunciation)
   words: ReadonlyMap<string, ReadonlyMap<string, number>>,
 ): SingleLangDictionary {
-  const collator = new Intl.Collator(language);
+  const collator = getCollator(language);
   return new Map(
     [...words].sort(([a], [b]) => collator.compare(a, b))
       .map(([word, pronunciations]) => [word, createPronunciationList(pronunciations)]),
