@@ -4,11 +4,17 @@ import { orderBy } from 'lodash';
 import pretty from 'pretty';
 import inspect from 'object-inspect';
 import { stripIndents, safeHtml } from 'common-tags';
-import { WiktionaryEdition, wiktionaryEditionToString } from "./wiktionary/wiktionary-edition";
-import { Language } from "./language";
-import { isPronunciationRetrievalError, PronunciationResult } from "./pronunciation-sources.ts/pronunciation-source";
-import { PronunciationRetrievalError } from "./pronunciation-sources.ts/pronunciation-retrieval-errors";
-import { DefaultMap } from "./utils/default-map";
+import {
+  WiktionaryEdition,
+  wiktionaryEditionToString,
+} from './wiktionary/wiktionary-edition';
+import { Language } from './language';
+import {
+  isPronunciationRetrievalError,
+  PronunciationResult,
+} from './pronunciation-sources.ts/pronunciation-source';
+import { PronunciationRetrievalError } from './pronunciation-sources.ts/pronunciation-retrieval-errors';
+import { DefaultMap } from './utils/default-map';
 
 interface EditionRecord {
   rawPronunciationCounts: DefaultMap<Language, number>;
@@ -18,7 +24,9 @@ interface EditionRecord {
 export function generateStats(pronunciationResults: PronunciationResult[]) {
   const stats = new DefaultMap<WiktionaryEdition, EditionRecord>(() => ({
     rawPronunciationCounts: new DefaultMap<Language, number>(() => 0),
-    errorGroups: new DefaultMap<string, PronunciationRetrievalError[]>(() => []),
+    errorGroups: new DefaultMap<string, PronunciationRetrievalError[]>(
+      () => [],
+    ),
   }));
 
   for (const result of pronunciationResults) {
@@ -27,8 +35,12 @@ export function generateStats(pronunciationResults: PronunciationResult[]) {
       stats.get(result.line.edition).errorGroups.get(result.code).push(result);
     } else {
       // Result is word pronunciation
-      const rawPronunciationCounts = stats.get(result.sourceEdition).rawPronunciationCounts;
-      rawPronunciationCounts.set(result.language, rawPronunciationCounts.get(result.language) + 1);
+      const rawPronunciationCounts = stats.get(result.sourceEdition)
+        .rawPronunciationCounts;
+      rawPronunciationCounts.set(
+        result.language,
+        rawPronunciationCounts.get(result.language) + 1,
+      );
     }
   }
 
@@ -42,40 +54,44 @@ export function generateStats(pronunciationResults: PronunciationResult[]) {
           <th>Language</th>
           <th class="text-right">Raw pronunciations</th>
         </tr>
-        ${
-          orderBy([...rawPronunciationCounts], ([_, count]) => count, 'desc')
-            .slice(0, 10)
-            .map(([language, count]) => stripIndents`
+        ${orderBy([...rawPronunciationCounts], ([_, count]) => count, 'desc')
+          .slice(0, 10)
+          .map(
+            ([language, count]) => stripIndents`
               <tr>
                 <td>${language}</td>
                 <td class="text-right">${count.toLocaleString('en-US')}</td>
               </tr>
-            `)
-            .join('\n')
-        }
+            `,
+          )
+          .join('\n')}
         <tr>
           <td colspan="2">...</td>
         </tr>
       </table>
     `;
 
-    const sortedErrorGroups = orderBy([...errorGroups], ([_, instances]) => instances.length, 'desc');
+    const sortedErrorGroups = orderBy(
+      [...errorGroups],
+      ([_, instances]) => instances.length,
+      'desc',
+    );
     const errorOverview = stripIndents`
       <table class="table table-bordered" style="width: auto !important;">
         <tr>
           <th>Error code</th>
           <th class="text-right">Number of occurrences</th>
         </tr>
-        ${
-          sortedErrorGroups
-            .map(([code, instances]) => stripIndents`
+        ${sortedErrorGroups
+          .map(
+            ([code, instances]) => stripIndents`
               <tr>
                 <td><a href="#${code}">${code}</a></td>
                 <td>${instances.length.toLocaleString('en-US')}</td>
               </tr>
-            `)
-            .join('\n')
-        }
+            `,
+          )
+          .join('\n')}
       </table>
     `;
 
@@ -91,18 +107,28 @@ export function generateStats(pronunciationResults: PronunciationResult[]) {
               <th>Line</th>
               <th>MediaWiki code</th>
             </tr>
-            ${
-              orderBy(errors, [error => inspect(error.data), error => error.line.pageTitle, error => error.line.index])
-                .map(error => safeHtml`
+            ${orderBy(errors, [
+              error => inspect(error.data),
+              error => error.line.pageTitle,
+              error => error.line.index,
+            ])
+              .map(
+                error => safeHtml`
                   <tr>
-                    <td><p class="text-monospace">${error.data !== undefined ? inspect(error.data) : ''}</p></td>
-                    <td><a href="https://${error.line.edition}.wiktionary.org/wiki/${error.line.pageTitle}">${error.line.pageTitle}</a></td>
+                    <td><p class="text-monospace">${
+                      error.data !== undefined ? inspect(error.data) : ''
+                    }</p></td>
+                    <td><a href="https://${
+                      error.line.edition
+                    }.wiktionary.org/wiki/${error.line.pageTitle}">${
+                  error.line.pageTitle
+                }</a></td>
                     <td>${error.line.index + 1}</td>
                     <td><p class="text-monospace">${error.line.text}</p></td>
                   </tr>
-                `)
-                .join('\n')
-            }
+                `,
+              )
+              .join('\n')}
           </table>
         `;
       })
@@ -110,7 +136,9 @@ export function generateStats(pronunciationResults: PronunciationResult[]) {
 
     const title = `Statistics for ${wiktionaryEditionToString(edition)}`;
 
-    writeFileSync(joinPaths(statsDir, `${edition}-wiktionary.html`), pretty(`
+    writeFileSync(
+      joinPaths(statsDir, `${edition}-wiktionary.html`),
+      pretty(`
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -131,6 +159,7 @@ export function generateStats(pronunciationResults: PronunciationResult[]) {
           ${errorDetails}
         </body>
       </html>
-    `));
+    `),
+    );
   }
 }

@@ -1,6 +1,10 @@
 import { getAlpha2Code } from '@cospired/i18n-iso-languages';
-import { Language } from "../language";
-import { findTemplates, parseWiktionaryPage, isHeading } from "../wiktionary/wiktionary-page-parser";
+import { Language } from '../language';
+import {
+  findTemplates,
+  parseWiktionaryPage,
+  isHeading,
+} from '../wiktionary/wiktionary-page-parser';
 import {
   unexpectedLanguageLineFormatError,
   mismatchingRedundantWordInfoError,
@@ -9,13 +13,20 @@ import {
   unexpectedTemplateArgumentCountError,
   unsupportedLanguageNameError,
   pronunciationOutsideOfPronunciationSectionError,
-} from "./pronunciation-retrieval-errors";
-import { WiktionaryEdition } from "../wiktionary/wiktionary-edition";
-import { PronunciationResult, PronunciationSource } from "./pronunciation-source";
-import { parseWiktionaryDump, WiktionaryPage } from '../wiktionary/wiktionary-dump-parser';
+} from './pronunciation-retrieval-errors';
+import { WiktionaryEdition } from '../wiktionary/wiktionary-edition';
+import {
+  PronunciationResult,
+  PronunciationSource,
+} from './pronunciation-source';
+import {
+  parseWiktionaryDump,
+  WiktionaryPage,
+} from '../wiktionary/wiktionary-dump-parser';
 import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 import { decodeXML } from 'entities';
 
+// prettier-ignore
 const languageAliases = new Map<string, Language>([
   ['Thai', 'th'],               // alias for 'Thailändisch'
   ['Neugriechisch', 'el'],      // alias for 'Griechisch'
@@ -25,6 +36,7 @@ const languageAliases = new Map<string, Language>([
   ['Westfriesisch', 'fy'],      // alias for 'Friesisch'
 ].map(([name, language]) => [name.toLowerCase(), language]));
 
+// prettier-ignore
 const ignoredLanguageNames = new Set<string>([
   'akkadisch',                      // dead
   'altenglisch',                    // dead
@@ -55,9 +67,11 @@ const ignoredLanguageNames = new Set<string>([
 ]);
 
 function parseGermanLanguageName(languageName: string): Language | null {
-  return getAlpha2Code(languageName, 'de')
-    ?? languageAliases.get(languageName.toLowerCase())
-    ?? null;
+  return (
+    getAlpha2Code(languageName, 'de') ??
+    languageAliases.get(languageName.toLowerCase()) ??
+    null
+  );
 }
 
 function removeAccents(value: string): string {
@@ -65,10 +79,14 @@ function removeAccents(value: string): string {
 }
 
 function removeMarkup(value: string): string {
-  return decodeXML(value).replace(/®|\{\{\(R\)\}\}|\[|\]/g, '').trim();
+  return decodeXML(value)
+    .replace(/®|\{\{\(R\)\}\}|\[|\]/g, '')
+    .trim();
 }
 
-async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<PronunciationResult> {
+async function* getPronunciationsFromPage(
+  page: WiktionaryPage,
+): AsyncIterable<PronunciationResult> {
   if (!pageTitleIsSingleWord(page.title)) return;
 
   const Invalid = Symbol();
@@ -93,7 +111,10 @@ async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<P
           yield unexpectedLanguageLineFormatError(line);
         } else {
           const redundantWord = match[1].trim();
-          if (removeMarkup(removeAccents(redundantWord)) !== removeAccents(page.title)) {
+          if (
+            removeMarkup(removeAccents(redundantWord)) !==
+            removeAccents(page.title)
+          ) {
             // The redundant word is fundamentally different from the page title
             yield mismatchingRedundantWordInfoError(line);
           } else {
@@ -130,8 +151,14 @@ async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<P
           yield unexpectedPronunciationLineFormatError(line);
         } else {
           // Stop parsing the line once pronunciations get prefixed with qualifiers such as "plural"
-          const unqualifiedText = line.text.match(/:\{\{IPA\}\}\s*(\{\{Lautschrift\|.*?\}\},?\s*)*/)?.[0] ?? '';
-          const pronunciationTemplates = findTemplates('Lautschrift', unqualifiedText);
+          const unqualifiedText =
+            line.text.match(
+              /:\{\{IPA\}\}\s*(\{\{Lautschrift\|.*?\}\},?\s*)*/,
+            )?.[0] ?? '';
+          const pronunciationTemplates = findTemplates(
+            'Lautschrift',
+            unqualifiedText,
+          );
 
           for (const template of pronunciationTemplates) {
             if (template.length !== 1) {
@@ -140,7 +167,12 @@ async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<P
               const pronunciation = template[0];
               if (pronunciation.length > 0) {
                 // Some articles contain empty pronunciation placeholders
-                yield { sourceEdition: page.edition, language: language, word: page.title, pronunciation };
+                yield {
+                  sourceEdition: page.edition,
+                  language: language,
+                  word: page.title,
+                  pronunciation,
+                };
               }
             }
           }
@@ -152,9 +184,9 @@ async function* getPronunciationsFromPage(page: WiktionaryPage): AsyncIterable<P
 
 export const pronunciationSourceWiktionaryDe: PronunciationSource = {
   edition: WiktionaryEdition.German,
-  getPronunciations: async function*() {
+  getPronunciations: async function* () {
     for await (const page of parseWiktionaryDump(WiktionaryEdition.German)) {
       yield* getPronunciationsFromPage(page);
     }
   },
-}
+};

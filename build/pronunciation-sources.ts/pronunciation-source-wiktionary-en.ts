@@ -1,12 +1,15 @@
-import { PronunciationResult, PronunciationSource } from "./pronunciation-source";
+import {
+  PronunciationResult,
+  PronunciationSource,
+} from './pronunciation-source';
 import { join as joinPaths } from 'path';
 import streamProgressbar from 'stream-progressbar';
 import splitStream from 'split2';
-import { downloadsDir } from "../directories";
-import { createReadStream, existsSync, statSync } from "fs-extra";
-import { downloadBzip2Content } from "../utils/download-bzip2-content";
-import { WiktionaryEdition } from "../wiktionary/wiktionary-edition";
-import { isNotNullish } from "../utils/is-not-nullish";
+import { downloadsDir } from '../directories';
+import { createReadStream, existsSync, statSync } from 'fs-extra';
+import { downloadBzip2Content } from '../utils/download-bzip2-content';
+import { WiktionaryEdition } from '../wiktionary/wiktionary-edition';
+import { isNotNullish } from '../utils/is-not-nullish';
 
 // The pronunciation source for the English Wiktionary, based on Wiktextract.
 //
@@ -19,7 +22,8 @@ async function getWiktextractFilePath(): Promise<string> {
   const filePath = joinPaths(downloadsDir, 'wiktextract-all.json');
   if (!existsSync(filePath)) {
     console.log('Downloading Wiktextract data file.');
-    const url = 'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.bz2';
+    const url =
+      'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.bz2';
     await downloadBzip2Content(url, filePath);
   }
 
@@ -42,7 +46,11 @@ interface WordRecord {
 async function* getWiktextractPronunciations(): AsyncIterable<PronunciationResult> {
   const wiktextractFilePath = await getWiktextractFilePath();
   const lineStream = createReadStream(wiktextractFilePath)
-    .pipe(streamProgressbar(':bar :percent processed (:etas remaining)', { total: statSync(wiktextractFilePath).size }))
+    .pipe(
+      streamProgressbar(':bar :percent processed (:etas remaining)', {
+        total: statSync(wiktextractFilePath).size,
+      }),
+    )
     .pipe(splitStream());
   for await (const line of lineStream) {
     const wordRecord: WordRecord = JSON.parse(line);
@@ -61,7 +69,7 @@ async function* getWiktextractPronunciations(): AsyncIterable<PronunciationResul
         language: wordRecord.lang_code,
         word: wordRecord.word,
         pronunciation: pronunciation,
-      }
+      };
     }
   }
 }
@@ -69,4 +77,4 @@ async function* getWiktextractPronunciations(): AsyncIterable<PronunciationResul
 export const pronunciationSourceWiktionaryEn: PronunciationSource = {
   edition: WiktionaryEdition.English,
   getPronunciations: getWiktextractPronunciations,
-}
+};

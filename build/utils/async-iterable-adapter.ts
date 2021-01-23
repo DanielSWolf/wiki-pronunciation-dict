@@ -1,4 +1,4 @@
-import Semaphore from 'semaphore-async-await'
+import Semaphore from 'semaphore-async-await';
 
 /**
  * Class that implements the `AsyncIterable` interface and receives its items through explicit calls.
@@ -65,12 +65,15 @@ export class AsyncIterableAdapter<T> implements AsyncIterable<T> {
   }
 }
 
-type Message<T> = {
-  type: 'value';
-  value: T;
-} | {
-  type: 'error';
-  error: Error;
-} | {
-  type: 'done';
-}
+type Message<T> =
+  | {
+      type: 'value';
+      value: T;
+    }
+  | {
+      type: 'error';
+      error: Error;
+    }
+  | {
+      type: 'done';
+    };
