@@ -8,7 +8,8 @@
   "main": "src/index.js",
   "scripts": {
     "build": "node --max-old-space-size=8192 --require sucrase/register build/build.ts",
-    "build:prof": "node --prof --max-old-space-size=8192 --require sucrase/register build/build.ts"
+    "build:prof": "node --prof --max-old-space-size=8192 --require sucrase/register build/build.ts",
+    "prettify": "prettier --write ."
   },
   "devDependencies": {
     "@cospired/i18n-iso-languages": "^2.2.0",
@@ -27,6 +28,7 @@
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
     "object-inspect": "^1.8.0",
+    "prettier": "2.2.1",
     "pretty": "^2.0.0",
     "saxophone-ts": "^0.6.4",
     "semaphore-async-await": "^1.5.1",
