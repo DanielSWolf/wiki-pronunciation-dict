@@ -1,5 +1,5 @@
-import { WiktionaryEdition } from "./wiktionary-edition";
-import { WiktionaryPage } from "./wiktionary-dump-parser";
+import { WiktionaryEdition } from './wiktionary-edition';
+import { WiktionaryPage } from './wiktionary-dump-parser';
 
 /** Information on a single source line from a Wiktionary page */
 export interface WiktionaryLine {
@@ -22,7 +22,9 @@ export function isHeading(line: Heading | WiktionaryLine): line is Heading {
   return 'level' in line;
 }
 
-export function* parseWiktionaryPage(page: WiktionaryPage): Iterable<Heading | WiktionaryLine> {
+export function* parseWiktionaryPage(
+  page: WiktionaryPage,
+): Iterable<Heading | WiktionaryLine> {
   for (const line of splitIntoLines(page)) {
     const isHeading = line.text.startsWith('=') && line.text.endsWith('=');
     yield isHeading ? getHeading(line) : line;
@@ -32,16 +34,15 @@ export function* parseWiktionaryPage(page: WiktionaryPage): Iterable<Heading | W
 function getHeading(line: WiktionaryLine): Heading {
   const maxLevel = Math.floor((line.text.length - 1) / 2);
   let level = 0;
-  while (line.text[level] === '='
-    && line.text[line.text.length - 1 - level] === '='
-    && level + 1 < maxLevel
+  while (
+    line.text[level] === '=' &&
+    line.text[line.text.length - 1 - level] === '=' &&
+    level + 1 < maxLevel
   ) {
     level++;
   }
 
-  const title = line.text
-    .substring(level, line.text.length - level)
-    .trim();
+  const title = line.text.substring(level, line.text.length - level).trim();
 
   return { ...line, level, title };
 }
@@ -56,7 +57,10 @@ export function splitIntoLines(page: WiktionaryPage): WiktionaryLine[] {
   }));
 }
 
-export function findTemplates(templateName: string, text: string): TemplateArgs[] {
+export function findTemplates(
+  templateName: string,
+  text: string,
+): TemplateArgs[] {
   const regex = new RegExp(`\\{\\{${templateName}\\|(.*?)\\}\\}`, 'g');
   const matches = text.matchAll(regex);
   return [...matches].map(match => {
@@ -65,10 +69,13 @@ export function findTemplates(templateName: string, text: string): TemplateArgs[
       .map(argument => argument.trim())
       .filter(argument => !/^\w+=/.test(argument)); // Omit named arguments
     return templateArgs;
-  })
+  });
 }
 
-export function findLastTemplate(templateName: string, text: string): TemplateArgs | null {
+export function findLastTemplate(
+  templateName: string,
+  text: string,
+): TemplateArgs | null {
   const templates = findTemplates(templateName, text);
   return templates.length > 0 ? templates[templates.length - 1] : null;
 }

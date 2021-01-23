@@ -15,7 +15,9 @@ export interface WiktionaryPage {
 }
 
 /** Parses a MediaWiki dump file, calling a callback on each page. */
-export function parseWiktionaryDump(edition: WiktionaryEdition): AsyncIterable<WiktionaryPage> {
+export function parseWiktionaryDump(
+  edition: WiktionaryEdition,
+): AsyncIterable<WiktionaryPage> {
   const result = new AsyncIterableAdapter<WiktionaryPage>();
 
   (async () => {
@@ -40,7 +42,11 @@ export function parseWiktionaryDump(edition: WiktionaryEdition): AsyncIterable<W
         // We're in a page text element
         if (!currentTitle) return;
 
-        const page: WiktionaryPage = { edition, title: currentTitle, text: nodeText };
+        const page: WiktionaryPage = {
+          edition,
+          title: currentTitle,
+          text: nodeText,
+        };
         await result.signalValue(page);
       }
     });
@@ -49,11 +55,19 @@ export function parseWiktionaryDump(edition: WiktionaryEdition): AsyncIterable<W
     const fileStream = createReadStream(dumpFilePath);
 
     fileStream
-      .pipe(streamProgressbar(':bar :percent processed (:etas remaining)', { total: statSync(dumpFilePath).size }))
+      .pipe(
+        streamProgressbar(':bar :percent processed (:etas remaining)', {
+          total: statSync(dumpFilePath).size,
+        }),
+      )
       .pipe(xmlStream as any);
 
-    fileStream.on('close', async () => { await result.signalDone(); });
-    fileStream.on('error', async error => { await result.signalError(error); });
+    fileStream.on('close', async () => {
+      await result.signalDone();
+    });
+    fileStream.on('error', async error => {
+      await result.signalError(error);
+    });
   })();
 
   return result;

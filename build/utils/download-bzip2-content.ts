@@ -11,7 +11,10 @@ import unbzip2Stream from 'unbzip2-stream';
  * The target file is created in one atomic operation, so that if the process is terminated, the
  * target file is either complete or missing.
  */
-export async function downloadBzip2Content(url: string, targetPath: string): Promise<void> {
+export async function downloadBzip2Content(
+  url: string,
+  targetPath: string,
+): Promise<void> {
   await ensureDir(dirname(targetPath));
 
   const tempPath = `${targetPath}~`;
@@ -19,7 +22,9 @@ export async function downloadBzip2Content(url: string, targetPath: string): Pro
     .pipe(streamProgressbar(':bar :percent downloaded (:etas remaining)'))
     .pipe(unbzip2Stream())
     .pipe(createWriteStream(tempPath));
-  await new Promise((resolve, reject) => stream.on('close', resolve).on('error', reject));
+  await new Promise((resolve, reject) =>
+    stream.on('close', resolve).on('error', reject),
+  );
 
   await move(tempPath, targetPath);
 }
