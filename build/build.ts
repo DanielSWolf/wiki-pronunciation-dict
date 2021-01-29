@@ -1,23 +1,11 @@
-import {
-  createMultiLangDictionary,
-  MultiLangDictionary,
-} from './multi-lang-dictionary';
-import { generateDataFiles } from './generate-data-files';
+import { writeDictionaryFiles } from './dictionary/write-dictionary-files';
 import { pronunciationSourceWiktionaryEn } from './pronunciation-sources.ts/pronunciation-source-wiktionary-en';
 import { pronunciationSourceWiktionaryDe } from './pronunciation-sources.ts/pronunciation-source-wiktionary-de';
 import { runAsyncMain } from './utils/run-async-main';
 import { wiktionaryEditionToString } from './wiktionary/wiktionary-edition';
 import { WordPronunciation } from './pronunciation-sources.ts/pronunciation-source';
 import { createIssueLogFiles } from './issue-logging';
-
-function omitSparseLanguages(
-  multiLangDictionary: MultiLangDictionary,
-): MultiLangDictionary {
-  const minWordCount = 10000;
-  return new Map(
-    [...multiLangDictionary].filter(([_, words]) => words.size >= minWordCount),
-  );
-}
+import { createDictionaries } from './dictionary/create-dictionaries';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
@@ -38,13 +26,11 @@ async function main() {
       }
     }
 
-    console.log('Assembling multi-language dictionary.');
-    const multiLangDictionary = omitSparseLanguages(
-      createMultiLangDictionary(wordPronunciations),
-    );
+    console.log('Creating dictionaries.');
+    const dictionaries = createDictionaries(wordPronunciations);
 
-    console.log('Generating data files.');
-    generateDataFiles(multiLangDictionary);
+    console.log('Writing dictionary files.');
+    writeDictionaryFiles(dictionaries);
 
     console.log('Creating issue log files.');
     await createIssueLogFiles();
