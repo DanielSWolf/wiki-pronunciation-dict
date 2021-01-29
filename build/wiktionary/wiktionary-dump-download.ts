@@ -6,7 +6,7 @@ import {
   WiktionaryEdition,
   wiktionaryEditionToString,
 } from './wiktionary-edition';
-import { downloadBzip2Content } from '../utils/download-bzip2-content';
+import { downloadFile } from '../utils/download-file';
 import { downloadsDir } from '../directories';
 
 async function getWiktionaryDownloadUrl(
@@ -35,9 +35,11 @@ export async function getWiktionaryDumpFilePath(
 ): Promise<string> {
   const filePath = getXmlFilePath(edition);
   if (!existsSync(filePath)) {
-    console.log(`Downloading dump for ${wiktionaryEditionToString(edition)}.`);
     const url = await getWiktionaryDownloadUrl(edition);
-    await downloadBzip2Content(url, filePath);
+    await downloadFile(url, filePath, {
+      description: `dump for ${wiktionaryEditionToString(edition)}`,
+      decompressBzip2: true,
+    });
   }
 
   return filePath;

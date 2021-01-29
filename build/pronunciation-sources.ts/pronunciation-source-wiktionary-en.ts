@@ -4,7 +4,7 @@ import streamProgressbar from 'stream-progressbar';
 import splitStream from 'split2';
 import { downloadsDir } from '../directories';
 import { createReadStream, existsSync, statSync } from 'fs-extra';
-import { downloadBzip2Content } from '../utils/download-bzip2-content';
+import { downloadFile } from '../utils/download-file';
 import { WiktionaryEdition } from '../wiktionary/wiktionary-edition';
 import { isNotNullish } from '../utils/is-not-nullish';
 
@@ -16,13 +16,14 @@ import { isNotNullish } from '../utils/is-not-nullish';
 // pronunciations.
 
 async function getWiktextractFilePath(): Promise<string> {
+  const url =
+    'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.bz2';
   const filePath = joinPaths(downloadsDir, 'wiktextract-all.json');
-  if (!existsSync(filePath)) {
-    console.log('Downloading Wiktextract data file.');
-    const url =
-      'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.bz2';
-    await downloadBzip2Content(url, filePath);
-  }
+  await downloadFile(url, filePath, {
+    description: 'Wiktextract data file',
+    decompressBzip2: true,
+    skipIfExists: true,
+  });
 
   return filePath;
 }
