@@ -1,5 +1,5 @@
 node_modules/
 /downloads/
 /data/
-/stats/
+/issue-logs/
 yarn.lock

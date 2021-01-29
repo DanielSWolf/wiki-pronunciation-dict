@@ -1,7 +1,4 @@
-import {
-  PronunciationResult,
-  PronunciationSource,
-} from './pronunciation-source';
+import { PronunciationSource, WordPronunciation } from './pronunciation-source';
 import { join as joinPaths } from 'path';
 import streamProgressbar from 'stream-progressbar';
 import splitStream from 'split2';
@@ -43,7 +40,7 @@ interface WordRecord {
   }>;
 }
 
-async function* getWiktextractPronunciations(): AsyncIterable<PronunciationResult> {
+async function* getWiktextractPronunciations(): AsyncIterable<WordPronunciation> {
   const wiktextractFilePath = await getWiktextractFilePath();
   const lineStream = createReadStream(wiktextractFilePath)
     .pipe(
