@@ -1,4 +1,3 @@
-import { generateStats } from './generate-stats';
 import {
   createMultiLangDictionary,
   MultiLangDictionary,
@@ -6,9 +5,10 @@ import {
 import { generateDataFiles } from './generate-data-files';
 import { pronunciationSourceWiktionaryEn } from './pronunciation-sources.ts/pronunciation-source-wiktionary-en';
 import { pronunciationSourceWiktionaryDe } from './pronunciation-sources.ts/pronunciation-source-wiktionary-de';
-import { PronunciationResult } from './pronunciation-sources.ts/pronunciation-source';
 import { runAsyncMain } from './utils/run-async-main';
 import { wiktionaryEditionToString } from './wiktionary/wiktionary-edition';
+import { WordPronunciation } from './pronunciation-sources.ts/pronunciation-source';
+import { createIssueLogFiles } from './issue-logging';
 
 function omitSparseLanguages(
   multiLangDictionary: MultiLangDictionary,
@@ -26,7 +26,7 @@ const pronunciationSources = [
 
 async function main() {
   try {
-    const pronunciationResults: PronunciationResult[] = [];
+    const wordPronunciations: WordPronunciation[] = [];
     for (const pronunciationSource of pronunciationSources) {
       console.log(
         `Loading pronunciations from ${wiktionaryEditionToString(
@@ -34,20 +34,20 @@ async function main() {
         )}.`,
       );
       for await (const pronunciation of pronunciationSource.getPronunciations()) {
-        pronunciationResults.push(pronunciation);
+        wordPronunciations.push(pronunciation);
       }
     }
 
-    console.log('Generating statistics.');
-    generateStats(pronunciationResults);
-
     console.log('Assembling multi-language dictionary.');
     const multiLangDictionary = omitSparseLanguages(
-      createMultiLangDictionary(pronunciationResults),
+      createMultiLangDictionary(wordPronunciations),
     );
 
     console.log('Generating data files.');
     generateDataFiles(multiLangDictionary);
+
+    console.log('Creating issue log files.');
+    await createIssueLogFiles();
   } catch (error) {
     console.error(error, error.stack);
     process.exit(1);

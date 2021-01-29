@@ -5,26 +5,24 @@ import {
   parseWiktionaryPage,
   isHeading,
 } from '../wiktionary/wiktionary-page-parser';
-import {
-  unexpectedLanguageLineFormatError,
-  mismatchingRedundantWordInfoError,
-  pronunciationOutsideOfLanguageSectionError,
-  unexpectedPronunciationLineFormatError,
-  unexpectedTemplateArgumentCountError,
-  unsupportedLanguageNameError,
-  pronunciationOutsideOfPronunciationSectionError,
-} from './pronunciation-retrieval-errors';
 import { WiktionaryEdition } from '../wiktionary/wiktionary-edition';
-import {
-  PronunciationResult,
-  PronunciationSource,
-} from './pronunciation-source';
+import { PronunciationSource, WordPronunciation } from './pronunciation-source';
 import {
   parseWiktionaryDump,
   WiktionaryPage,
 } from '../wiktionary/wiktionary-dump-parser';
 import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 import { decodeXML } from 'entities';
+import { log } from '../issue-logging';
+import {
+  MismatchingRedundantWordInfoIssue,
+  PronunciationOutsideOfLanguageSectionIssue,
+  PronunciationOutsideOfPronunciationSectionIssue,
+  UnexpectedLanguageLineFormatIssue,
+  UnexpectedPronunciationLineFormatIssue,
+  UnexpectedTemplateArgumentCountIssue,
+  UnsupportedLanguageNameIssue,
+} from './pronunciation-retrieval-issues';
 
 // prettier-ignore
 const languageAliases = new Map<string, Language>([
@@ -86,7 +84,7 @@ function removeMarkup(value: string): string {
 
 async function* getPronunciationsFromPage(
   page: WiktionaryPage,
-): AsyncIterable<PronunciationResult> {
+): AsyncIterable<WordPronunciation> {
   if (!pageTitleIsSingleWord(page.title)) return;
 
   const Invalid = Symbol();
@@ -108,7 +106,7 @@ async function* getPronunciationsFromPage(
         const regex = /^(.+)\(\{\{Sprache\|([^}]+)\}\}\)$/;
         const match = line.title.match(regex);
         if (!match) {
-          yield unexpectedLanguageLineFormatError(line);
+          log(new UnexpectedLanguageLineFormatIssue(line));
         } else {
           const redundantWord = match[1].trim();
           if (
@@ -116,13 +114,13 @@ async function* getPronunciationsFromPage(
             removeAccents(page.title)
           ) {
             // The redundant word is fundamentally different from the page title
-            yield mismatchingRedundantWordInfoError(line);
+            log(new MismatchingRedundantWordInfoIssue(line));
           } else {
             const languageName = match[2].trim();
             if (!ignoredLanguageNames.has(languageName.toLowerCase())) {
               const newLanguage = parseGermanLanguageName(languageName);
               if (newLanguage === null) {
-                yield unsupportedLanguageNameError(languageName, line);
+                log(new UnsupportedLanguageNameIssue(languageName, line));
               } else {
                 language = newLanguage;
               }
@@ -142,13 +140,13 @@ async function* getPronunciationsFromPage(
       // Parse pronunciation information
       if (line.text.includes('{{Lautschrift')) {
         if (!inPronunciationBlock) {
-          yield pronunciationOutsideOfPronunciationSectionError(line);
+          log(new PronunciationOutsideOfPronunciationSectionIssue(line));
         } else if (language === null) {
-          yield pronunciationOutsideOfLanguageSectionError(line);
+          log(new PronunciationOutsideOfLanguageSectionIssue(line));
         } else if (language === Invalid) {
           // No need to yield another error
         } else if (!line.text.startsWith(':{{IPA}}')) {
-          yield unexpectedPronunciationLineFormatError(line);
+          log(new UnexpectedPronunciationLineFormatIssue(line));
         } else {
           // Stop parsing the line once pronunciations get prefixed with qualifiers such as "plural"
           const unqualifiedText =
@@ -162,7 +160,7 @@ async function* getPronunciationsFromPage(
 
           for (const template of pronunciationTemplates) {
             if (template.length !== 1) {
-              yield unexpectedTemplateArgumentCountError(template, line);
+              log(new UnexpectedTemplateArgumentCountIssue(template, 1, line));
             } else {
               const pronunciation = template[0];
               if (pronunciation.length > 0) {
