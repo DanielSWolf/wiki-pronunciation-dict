@@ -28,7 +28,7 @@ export function createDictionaries(
   return orderBy(
     dictionaries,
     [
-      dictionary => (dictionary.language === 'en' ? 0 : 1), // Put English dictionary first
+      dictionary => (dictionary.metadata.language === 'en' ? 0 : 1), // Put English dictionary first
       dictionary => dictionary.data.size, // Sort the rest by descending size
     ],
     ['asc', 'desc'],

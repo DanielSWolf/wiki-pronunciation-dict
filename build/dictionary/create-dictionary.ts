@@ -7,20 +7,22 @@ import { DefaultMap } from '../utils/default-map';
 import { MissingMetadataIssue } from './dictionary-creation-issues';
 
 export interface Dictionary {
-  language: Language;
   data: Map<string, string[]>;
   metadata: Metadata;
 }
 
 export interface Metadata {
+  language: Language;
   description: string;
   graphemes: string[];
   phonemes: string[];
+  graphemeReplacements: Partial<Record<string, string>>;
+  phonemeReplacements: Partial<Record<string, string>>;
 }
 
-export interface QuantifiedMetadata extends Metadata {
-  graphemeFrequencies: number[];
-  phonemeFrequencies: number[];
+export interface Frequencies {
+  graphemeFrequencies: Map<string, number>;
+  phonemeFrequencies: Map<string, number>;
 }
 
 const knownMetadataLookup = new Map<Language, Metadata>();
@@ -64,7 +66,7 @@ export function createDictionary(
     }),
   );
 
-  return { language, data, metadata };
+  return { data, metadata };
 }
 
 function getMetadata(
@@ -74,17 +76,18 @@ function getMetadata(
   const knownMetadata = knownMetadataLookup.get(language);
   if (knownMetadata) return knownMetadata;
 
-  const generatedMetadata = generateDummyMetadata(language, wordPronunciations);
-  log(
-    new MissingMetadataIssue(language, wordPronunciations, generatedMetadata),
+  const { metadata, frequencies } = generateDummyMetadataAndFrequencies(
+    language,
+    wordPronunciations,
   );
-  return pick(generatedMetadata, 'description', 'graphemes', 'phonemes');
+  log(new MissingMetadataIssue(metadata, frequencies));
+  return metadata;
 }
 
-function generateDummyMetadata(
+function generateDummyMetadataAndFrequencies(
   language: Language,
   wordPronunciations: WordPronunciation[],
-): QuantifiedMetadata {
+) {
   const description = getName(language, 'en') ?? language;
 
   const graphemeStats = getCharacterStats(
@@ -110,13 +113,21 @@ function generateDummyMetadata(
     })(),
   );
 
-  return {
+  const metadata: Metadata = {
+    language,
     description,
     graphemes: graphemeStats.characters,
-    graphemeFrequencies: graphemeStats.frequencies,
     phonemes: phonemeStats.characters,
+    graphemeReplacements: {},
+    phonemeReplacements: {},
+  };
+
+  const frequencies: Frequencies = {
+    graphemeFrequencies: graphemeStats.frequencies,
     phonemeFrequencies: phonemeStats.frequencies,
   };
+
+  return { metadata, frequencies };
 }
 
 const englishCollator = new Intl.Collator();
@@ -144,8 +155,11 @@ function getCharacterStats(characters: Iterable<string>) {
   );
   return {
     characters: sortedCharacterCounts.map(([character, count]) => character),
-    frequencies: sortedCharacterCounts.map(
-      ([character, count]) => count / totalCharacterCount,
+    frequencies: new Map(
+      sortedCharacterCounts.map(([character, count]) => [
+        character,
+        count / totalCharacterCount,
+      ]),
     ),
   };
 }

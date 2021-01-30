@@ -1,4 +1,5 @@
 import { createWriteStream, emptyDirSync, writeFileSync } from 'fs-extra';
+import { pick } from 'lodash';
 import { join as joinPaths } from 'path';
 import { dictionariesDir } from '../directories';
 import { toCompactJson } from '../utils/to-compact-json';
@@ -15,7 +16,10 @@ export function writeDictionaryFiles(dictionaries: Dictionary[]) {
 
 function writeDictionaryFile(dictionary: Dictionary) {
   const stream = createWriteStream(
-    joinPaths(dictionariesDir, `dictionry-${dictionary.language}.json`),
+    joinPaths(
+      dictionariesDir,
+      `dictionry-${dictionary.metadata.language}.json`,
+    ),
   );
   try {
     stream.write('{\n');
@@ -35,5 +39,12 @@ function writeDictionaryFile(dictionary: Dictionary) {
 function writeMetadataFile(dictionaries: Dictionary[]) {
   const path = joinPaths(dictionariesDir, 'metadata.json');
   const metadata = dictionaries.map(dictionary => dictionary.metadata);
-  writeFileSync(path, toCompactJson(metadata));
+  const reducedMetadata = pick(
+    metadata,
+    'language',
+    'description',
+    'graphemes',
+    'phonemes',
+  );
+  writeFileSync(path, toCompactJson(reducedMetadata));
 }

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Cell, Issue, IssueSeverity } from '../issue-logging';
 import { Language } from '../language';
-import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
-import { QuantifiedMetadata } from './create-dictionary';
+import { Frequencies, Metadata } from './create-dictionary';
 import { toCompactJson } from '../utils/to-compact-json';
 
 abstract class DictionaryCreationIssueBase implements Issue {
@@ -24,11 +23,10 @@ export class MissingMetadataIssue extends DictionaryCreationIssueBase {
   severity = IssueSeverity.High;
 
   constructor(
-    language: Language,
-    private wordPronunciations: WordPronunciation[],
-    private generatedMetadata: QuantifiedMetadata,
+    private generatedMetadata: Metadata,
+    private frequencies: Frequencies,
   ) {
-    super(language);
+    super(generatedMetadata.language);
   }
 
   get cells() {
