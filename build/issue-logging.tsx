@@ -116,15 +116,15 @@ async function createIssueLogFile(logFileName: string, issues: Issue[]) {
 }
 
 function renderIssues(issues: Issue[]): ReactNode {
-  const issuesByMessage = createGroupedMap(issues, issue => issue.message);
-  const sortedMessages = orderBy(
-    [...issuesByMessage],
+  const issueGroupsByMessage = createGroupedMap(issues, issue => issue.message);
+  const sortedIssueGroups = orderBy(
+    [...issueGroupsByMessage],
     [
       ([message, issues]) => issues[0].severity,
       ([message, issues]) => issues.length,
     ],
     ['desc', 'desc'],
-  ).map(([message]) => message);
+  );
   return (
     <>
       <table
@@ -135,22 +135,28 @@ function renderIssues(issues: Issue[]): ReactNode {
           <th>Issue type</th>
           <th className="text-right">Number of occurrences</th>
         </tr>
-        {sortedMessages.map(message => (
+        {sortedIssueGroups.map(([message, issues]) => (
           <tr>
             <td>
-              <a href={`#${camelCase(message)}`}>{message}</a>
+              <a href={`#${camelCase(message)}`}>
+                {issues[0].severity === IssueSeverity.High ? (
+                  <strong>{message}</strong>
+                ) : (
+                  message
+                )}
+              </a>
             </td>
-            <td>{issuesByMessage.get(message)!.length}</td>
+            <td>{issues.length}</td>
           </tr>
         ))}
       </table>
 
-      {sortedMessages.map(message => (
+      {sortedIssueGroups.map(([message, issues]) => (
         <>
           <h3 id={camelCase(message)}>
-            {message} ({issuesByMessage.get(message)!.length} issues)
+            {message} ({issues.length} issues)
           </h3>
-          {renderIssueTable(issuesByMessage.get(message)!)}
+          {renderIssueTable(issues)}
         </>
       ))}
     </>
