@@ -38,13 +38,14 @@ function writeDictionaryFile(dictionary: Dictionary) {
 
 function writeMetadataFile(dictionaries: Dictionary[]) {
   const path = joinPaths(dictionariesDir, 'metadata.json');
-  const metadata = dictionaries.map(dictionary => dictionary.metadata);
-  const reducedMetadata = pick(
-    metadata,
-    'language',
-    'description',
-    'graphemes',
-    'phonemes',
+  const metadata = dictionaries.map(dictionary =>
+    pick(
+      dictionary.metadata,
+      'language',
+      'description',
+      'graphemes',
+      'phonemes',
+    ),
   );
-  writeFileSync(path, toCompactJson(reducedMetadata));
+  writeFileSync(path, toCompactJson(metadata));
 }

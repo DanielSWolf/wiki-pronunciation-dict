@@ -1,55 +1,38 @@
 import { getName } from '@cospired/i18n-iso-languages';
-import { orderBy, pick } from 'lodash';
+import { orderBy } from 'lodash';
 import { log } from '../issue-logging';
 import { Language } from '../language';
+import { Frequencies, Metadata } from '../lookups/metadata';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 import { DefaultMap } from '../utils/default-map';
 import { MissingMetadataIssue } from './dictionary-creation-issues';
+import { normalizeWordPronunciation } from './normalization';
+import { knownMetadataByLanguage } from '../lookups/metadata';
 
 export interface Dictionary {
   data: Map<string, string[]>;
   metadata: Metadata;
 }
 
-export interface Metadata {
-  language: Language;
-  description: string;
-  graphemes: string[];
-  phonemes: string[];
-  graphemeReplacements: Partial<Record<string, string>>;
-  phonemeReplacements: Partial<Record<string, string>>;
-}
-
-export interface Frequencies {
-  graphemeFrequencies: Map<string, number>;
-  phonemeFrequencies: Map<string, number>;
-}
-
-const knownMetadataLookup = new Map<Language, Metadata>();
-
-const unsupportedLanguages: Language[] = [
-  // Dead languages
-  'la', // Latin
-
-  // Languages with too many graphemes
-  'ja', // Japanese
-  'zh', // Chinese
-  'ko', // Korean
-];
-
 export function createDictionary(
   language: Language,
   wordPronunciations: WordPronunciation[],
 ): Dictionary | null {
-  if (unsupportedLanguages.includes(language)) return null;
-
   const metadata = getMetadata(language, wordPronunciations);
 
-  const pronunciationsByWord = new DefaultMap<string, string[]>(() => []);
+  const pronunciationsByWord = new DefaultMap<string, Set<string>>(
+    () => new Set(),
+  );
   for (const wordPronunciation of wordPronunciations) {
-    pronunciationsByWord
-      .get(wordPronunciation.word)
-      .push(wordPronunciation.pronunciation);
+    const normalizedWordPronunciations = normalizeWordPronunciation(
+      wordPronunciation,
+      metadata,
+    );
+    for (const normalizedWordPronunciation of normalizedWordPronunciations) {
+      pronunciationsByWord
+        .get(normalizedWordPronunciation.word)
+        .add(normalizedWordPronunciation.pronunciation);
+    }
   }
 
   const languageCollator = getCollator(language);
@@ -73,7 +56,7 @@ function getMetadata(
   language: Language,
   wordPronunciations: WordPronunciation[],
 ): Metadata {
-  const knownMetadata = knownMetadataLookup.get(language);
+  const knownMetadata = knownMetadataByLanguage.get(language);
   if (knownMetadata) return knownMetadata;
 
   const { metadata, frequencies } = generateDummyMetadataAndFrequencies(
@@ -118,8 +101,8 @@ function generateDummyMetadataAndFrequencies(
     description,
     graphemes: graphemeStats.characters,
     phonemes: phonemeStats.characters,
-    graphemeReplacements: {},
-    phonemeReplacements: {},
+    graphemeReplacements: [],
+    phonemeReplacements: [],
   };
 
   const frequencies: Frequencies = {

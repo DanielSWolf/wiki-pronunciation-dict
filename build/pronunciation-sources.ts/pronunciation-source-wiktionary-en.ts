@@ -59,7 +59,7 @@ async function* getWiktextractPronunciations(): AsyncIterable<WordPronunciation>
     const pronunciations = (wordRecord.sounds ?? [])
       // We're ignoring enPR pronunciations for the time being.
       // Almost all words with enPR have IPA, too.
-      .map(sound => sound.ipa?.replace(/^\[|\]$/g, ''))
+      .map(sound => sound.ipa)
       .filter(isNotNullish);
     for (const pronunciation of pronunciations) {
       yield {
