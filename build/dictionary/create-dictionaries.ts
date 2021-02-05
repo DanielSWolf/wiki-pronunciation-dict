@@ -1,3 +1,4 @@
+import ProgressBar from 'progress';
 import { createDictionary, Dictionary } from './create-dictionary';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 import { createGroupedMap } from '../utils/create-grouped-map';
@@ -17,6 +18,8 @@ export function createDictionaries(
     wordPronunciations,
     wordPronunciation => wordPronunciation.language,
   );
+
+  let progressBar: ProgressBar;
   const dictionaries = [...wordPronunciationsByLanguage]
     .filter(([language, wordPronunciations]) => {
       const distinctWords = new Set(
@@ -36,9 +39,16 @@ export function createDictionaries(
 
       return true;
     })
-    .map(([language, wordPronunciations]) =>
-      createDictionary(language, wordPronunciations),
-    )
+    .map(([language, wordPronunciations], index, array) => {
+      if (progressBar === undefined) {
+        progressBar = new ProgressBar(':bar :current/:total created', {
+          total: array.length,
+        });
+      }
+      const dictionary = createDictionary(language, wordPronunciations);
+      progressBar.tick();
+      return dictionary;
+    })
     .filter(isNotNullish);
 
   return orderBy(
