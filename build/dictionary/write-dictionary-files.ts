@@ -2,6 +2,8 @@ import { createWriteStream, emptyDirSync, writeFileSync } from 'fs-extra';
 import { pick } from 'lodash';
 import { join as joinPaths } from 'path';
 import { dictionariesDir } from '../directories';
+import { Metadata } from '../lookups/metadata';
+import { englishCollator, getCollator } from '../utils/collation';
 import { toCompactJson } from '../utils/to-compact-json';
 import { Dictionary } from './create-dictionary';
 
@@ -39,13 +41,19 @@ function writeDictionaryFile(dictionary: Dictionary) {
 function writeMetadataFile(dictionaries: Dictionary[]) {
   const path = joinPaths(dictionariesDir, 'metadata.json');
   const metadata = dictionaries.map(dictionary =>
-    pick(
-      dictionary.metadata,
-      'language',
-      'description',
-      'graphemes',
-      'phonemes',
-    ),
+    transformLanguageMetadata(dictionary.metadata),
   );
   writeFileSync(path, toCompactJson(metadata));
+}
+
+function transformLanguageMetadata(metadata: Metadata) {
+  const { language, description } = metadata;
+
+  // Order graphemes using language-specific sorting rules
+  const graphemes = [...metadata.graphemes].sort(getCollator(language).compare);
+
+  // Order phonemes using English sorting rules
+  const phonemes = [...metadata.phonemes].sort(englishCollator.compare);
+
+  return { language, description, graphemes, phonemes };
 }

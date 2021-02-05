@@ -8,6 +8,7 @@ import { DefaultMap } from '../utils/default-map';
 import { MissingMetadataIssue } from './dictionary-creation-issues';
 import { normalizeWordPronunciation } from './normalization';
 import { knownMetadataByLanguage } from '../lookups/metadata';
+import { englishCollator, getCollator } from '../utils/collation';
 
 export interface Dictionary {
   data: Map<string, string[]>;
@@ -111,17 +112,6 @@ function generateDummyMetadataAndFrequencies(
   };
 
   return { metadata, frequencies };
-}
-
-const englishCollator = new Intl.Collator();
-
-function getCollator(language: string) {
-  try {
-    return new Intl.Collator(language);
-  } catch {
-    // Ignore invalid language codes
-    return englishCollator;
-  }
 }
 
 function getCharacterStats(characters: Iterable<string>) {
