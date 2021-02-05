@@ -2,10 +2,13 @@ import { getName } from '@cospired/i18n-iso-languages';
 import { orderBy } from 'lodash';
 import { log } from '../issue-logging';
 import { Language } from '../language';
-import { Frequencies, Metadata } from '../lookups/metadata';
+import { Metadata } from '../lookups/metadata';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 import { DefaultMap } from '../utils/default-map';
-import { MissingMetadataIssue } from './dictionary-creation-issues';
+import {
+  Distributions,
+  MissingMetadataIssue,
+} from './dictionary-creation-issues';
 import { normalizeWordPronunciation } from './normalization';
 import { knownMetadataByLanguage } from '../lookups/metadata';
 import { englishCollator, getCollator } from '../utils/collation';
@@ -60,15 +63,15 @@ function getMetadata(
   const knownMetadata = knownMetadataByLanguage.get(language);
   if (knownMetadata) return knownMetadata;
 
-  const { metadata, frequencies } = generateDummyMetadataAndFrequencies(
+  const { metadata, distributions } = generateDummyMetadataAndDistributions(
     language,
     wordPronunciations,
   );
-  log(new MissingMetadataIssue(metadata, frequencies));
+  log(new MissingMetadataIssue(metadata, distributions));
   return metadata;
 }
 
-function generateDummyMetadataAndFrequencies(
+function generateDummyMetadataAndDistributions(
   language: Language,
   wordPronunciations: WordPronunciation[],
 ) {
@@ -77,8 +80,8 @@ function generateDummyMetadataAndFrequencies(
   const graphemeStats = getCharacterStats(
     (function* () {
       const words = new Set(
-        [...wordPronunciations].map(
-          wordPronunciation => wordPronunciation.word,
+        [...wordPronunciations].map(wordPronunciation =>
+          wordPronunciation.word.toLocaleLowerCase(language),
         ),
       );
       for (const word of words) {
@@ -106,12 +109,12 @@ function generateDummyMetadataAndFrequencies(
     phonemeReplacements: [],
   };
 
-  const frequencies: Frequencies = {
-    graphemeFrequencies: graphemeStats.frequencies,
-    phonemeFrequencies: phonemeStats.frequencies,
+  const distributions: Distributions = {
+    graphemeDistribution: graphemeStats.distribution,
+    phonemeDistribution: phonemeStats.distribution,
   };
 
-  return { metadata, frequencies };
+  return { metadata, distributions };
 }
 
 function getCharacterStats(characters: Iterable<string>) {
@@ -128,7 +131,7 @@ function getCharacterStats(characters: Iterable<string>) {
   );
   return {
     characters: sortedCharacterCounts.map(([character, count]) => character),
-    frequencies: new Map(
+    distribution: new Map(
       sortedCharacterCounts.map(([character, count]) => [
         character,
         count / totalCharacterCount,

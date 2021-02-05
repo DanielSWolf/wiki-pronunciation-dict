@@ -1,7 +1,7 @@
 import React from 'react';
 import { Cell, Issue, IssueSeverity } from '../issue-logging';
 import { Language } from '../language';
-import { Frequencies, Metadata } from '../lookups/metadata';
+import { Metadata } from '../lookups/metadata';
 import { toCompactJson } from '../utils/to-compact-json';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 
@@ -19,6 +19,14 @@ abstract class DictionaryCreationIssueBase implements Issue {
   abstract cells: Cell[];
 }
 
+export interface Distributions {
+  graphemeDistribution: Distribution;
+  phonemeDistribution: Distribution;
+}
+
+/** A frequency distribution, sorted by descending frequency. */
+export type Distribution = Map<string, number>;
+
 export class LanguageNotSupportedByNodeIssue extends DictionaryCreationIssueBase {
   message = 'Language is not supported by Node.';
   severity = IssueSeverity.High;
@@ -31,7 +39,7 @@ export class MissingMetadataIssue extends DictionaryCreationIssueBase {
 
   constructor(
     private generatedMetadata: Metadata,
-    private frequencies: Frequencies,
+    private distributions: Distributions,
   ) {
     super(generatedMetadata.language);
   }
@@ -49,6 +57,7 @@ export class MissingMetadataIssue extends DictionaryCreationIssueBase {
             <pre className="pre-scrollable" style={{ overflowX: 'scroll' }}>
               {toCompactJson(this.generatedMetadata)}
             </pre>
+            {renderGraphemeStatistics(this.distributions.graphemeDistribution)}
           </>
         ),
       },
@@ -121,4 +130,24 @@ export class InvalidGraphemeInWordIssue extends DictionaryCreationIssueBase {
       },
     ];
   }
+}
+
+function renderGraphemeStatistics(distribution: Distribution) {
+  return (
+    <table
+      className="table table-bordered"
+      style={{ width: 'auto !important' }}
+    >
+      <tr>
+        <th>Grapheme</th>
+        <th className="text-right">Frequency</th>
+      </tr>
+      {[...distribution].map(([grapheme, frequency]) => (
+        <tr>
+          <td>{JSON.stringify(grapheme)}</td>
+          <td>{frequency.toFixed(5)}</td>
+        </tr>
+      ))}
+    </table>
+  );
 }

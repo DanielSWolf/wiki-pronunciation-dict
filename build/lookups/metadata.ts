@@ -11,9 +11,4 @@ export interface Metadata {
 
 export type Replacement = [RegExp, string];
 
-export interface Frequencies {
-  graphemeFrequencies: Map<string, number>;
-  phonemeFrequencies: Map<string, number>;
-}
-
 export const knownMetadataByLanguage = new Map<Language, Metadata>();
