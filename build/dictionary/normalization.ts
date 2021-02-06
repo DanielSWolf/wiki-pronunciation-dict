@@ -45,7 +45,6 @@ export function normalizeWord(
         wordPronunciation,
         normalized,
         invalidGrapheme,
-        metadata,
       ),
     );
     return null;
@@ -90,7 +89,6 @@ export function normalizePronunciation(
         new InvalidPhonemeInPronunciationIssue(
           wordPronunciation,
           invalidPhoneme,
-          metadata,
         ),
       );
       return false;

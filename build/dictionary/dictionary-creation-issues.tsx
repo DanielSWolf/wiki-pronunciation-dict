@@ -82,7 +82,6 @@ export class InvalidPhonemeInPronunciationIssue extends DictionaryCreationIssueB
   constructor(
     private wordPronunciation: WordPronunciation,
     private invalidPhoneme: string,
-    private metadata: Metadata,
   ) {
     super(wordPronunciation.language);
   }
@@ -90,16 +89,12 @@ export class InvalidPhonemeInPronunciationIssue extends DictionaryCreationIssueB
   get cells() {
     return [
       {
+        title: 'Invalid phoneme',
+        value: JSON.stringify(this.invalidPhoneme),
+      },
+      {
         title: 'Pronunciation',
         value: this.wordPronunciation.pronunciation,
-      },
-      {
-        title: 'Invalid phoneme',
-        value: this.invalidPhoneme,
-      },
-      {
-        title: 'Valid phonemes',
-        value: <code>{toCompactJson(this.metadata.phonemes)}</code>,
       },
       {
         title: 'Word',
@@ -116,7 +111,6 @@ export class InvalidGraphemeInWordIssue extends DictionaryCreationIssueBase {
     private wordPronunciation: WordPronunciation,
     private normalizedWord: string,
     private invalidGrapheme: string,
-    private metadata: Metadata,
   ) {
     super(wordPronunciation.language);
   }
@@ -124,20 +118,16 @@ export class InvalidGraphemeInWordIssue extends DictionaryCreationIssueBase {
   get cells() {
     return [
       {
+        title: 'Invalid grapheme',
+        value: JSON.stringify(this.invalidGrapheme),
+      },
+      {
         title: 'Word',
         value: this.wordPronunciation.word,
       },
       {
         title: 'Normalized word',
         value: this.normalizedWord,
-      },
-      {
-        title: 'Invalid grapheme',
-        value: this.invalidGrapheme,
-      },
-      {
-        title: 'Valid graphemes',
-        value: <code>{toCompactJson(this.metadata.graphemes)}</code>,
       },
     ];
   }
