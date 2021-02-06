@@ -62,7 +62,7 @@ export enum IssueSeverity {
 const issuesByLogFile = new DefaultMap<string, Issue[]>(() => []);
 
 export function log(issue: Issue) {
-  issuesByLogFile.get(issue.logFileName).push(issue);
+  issuesByLogFile.getOrCreate(issue.logFileName).push(issue);
 }
 
 export async function createIssueLogFiles(): Promise<void> {

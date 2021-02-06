@@ -34,7 +34,7 @@ export function createDictionary(
     );
     for (const normalizedWordPronunciation of normalizedWordPronunciations) {
       pronunciationsByWord
-        .get(normalizedWordPronunciation.word)
+        .getOrCreate(normalizedWordPronunciation.word)
         .add(normalizedWordPronunciation.pronunciation);
     }
   }
@@ -121,7 +121,7 @@ function getCharacterStats(characters: Iterable<string>) {
   const characterCounts = new DefaultMap<string, number>(() => 0);
   let totalCharacterCount = 0;
   for (const character of characters) {
-    characterCounts.set(character, characterCounts.get(character) + 1);
+    characterCounts.set(character, characterCounts.getOrCreate(character) + 1);
     totalCharacterCount++;
   }
   const sortedCharacterCounts = orderBy(

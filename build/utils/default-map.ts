@@ -3,10 +3,10 @@ export class DefaultMap<TKey, TValue> extends Map<TKey, TValue> {
     super();
   }
 
-  get(key: TKey): TValue {
+  getOrCreate(key: TKey): TValue {
     if (!this.has(key)) {
       this.set(key, this.getDefaultValue(key));
     }
-    return super.get(key)!;
+    return this.get(key)!;
   }
 }
