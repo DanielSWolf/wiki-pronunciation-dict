@@ -4,6 +4,12 @@ import { Language } from '../language';
 import { Metadata } from '../lookups/metadata';
 import { toCompactJson } from '../utils/to-compact-json';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
+import {
+  getPhoibleData,
+  PhoibleInventory,
+  PhoibleInventoryId,
+  PhoibleLanguageRecord,
+} from './phoible';
 
 abstract class DictionaryCreationIssueBase implements Issue {
   abstract message: string;
@@ -40,6 +46,7 @@ export class MissingMetadataIssue extends DictionaryCreationIssueBase {
   constructor(
     private generatedMetadata: Metadata,
     private distributions: Distributions,
+    private phoibleLanguageRecord: PhoibleLanguageRecord,
   ) {
     super(generatedMetadata.language);
   }
@@ -58,6 +65,10 @@ export class MissingMetadataIssue extends DictionaryCreationIssueBase {
               {toCompactJson(this.generatedMetadata)}
             </pre>
             {renderGraphemeStatistics(this.distributions.graphemeDistribution)}
+            {renderPhonemeStatistics(
+              this.phoibleLanguageRecord,
+              this.distributions.phonemeDistribution,
+            )}
           </>
         ),
       },
@@ -150,4 +161,93 @@ function renderGraphemeStatistics(distribution: Distribution) {
       ))}
     </table>
   );
+}
+
+function renderPhonemeStatistics(
+  phoibleLanguageRecord: PhoibleLanguageRecord,
+  distribution: Distribution,
+) {
+  const inventories: PhoibleInventory[] = [
+    ...phoibleLanguageRecord.inventories.values(),
+  ];
+
+  // Collect all distinct phonemes Phoible knows for this language and add them to the distribution
+  const phoiblePhonemes = new Set(
+    inventories.flatMap(inventory =>
+      inventory.entries.map(entry => entry.phoneme),
+    ),
+  );
+  const extendedDistribution = new Map(distribution);
+  for (const phoneme of phoiblePhonemes) {
+    if (!extendedDistribution.has(phoneme)) {
+      extendedDistribution.set(phoneme, 0);
+    }
+  }
+
+  return (
+    <table
+      className="table table-bordered"
+      style={{ width: 'auto !important' }}
+    >
+      <tr>
+        <th>Phoneme</th>
+        <th className="text-right">Frequency</th>
+        {inventories.map(inventory => (
+          <th>
+            <a
+              href={`https://phoible.org/inventories/view/${inventory.inventoryId}`}
+            >
+              {inventory.inventoryName}
+            </a>
+          </th>
+        ))}
+      </tr>
+      {[...extendedDistribution].map(([phoneme, frequency]) => (
+        <tr>
+          <td>{JSON.stringify(phoneme)}</td>
+          <td>{frequency.toFixed(5)}</td>
+          {inventories.map(inventory => (
+            <td>{renderPhonemeCoverage(phoneme, inventory)}</td>
+          ))}
+        </tr>
+      ))}
+    </table>
+  );
+}
+
+function renderPhonemeCoverage(phoneme: string, inventory: PhoibleInventory) {
+  const hasExactMatch = inventory.entries.some(
+    entry => entry.phoneme === phoneme,
+  );
+  if (hasExactMatch) {
+    return <p className="text-success">✔</p>;
+  }
+
+  const partialMatches = inventory.entries
+    .filter(entry => entry.phoneme.includes(phoneme))
+    .map(entry => entry.phoneme);
+  const allophoneMatches = inventory.entries
+    .filter(entry => entry.allophones.includes(phoneme))
+    .map(entry => entry.phoneme);
+  const looseMatchesString = [
+    ...(partialMatches.length > 0
+      ? [
+          `part of ${partialMatches
+            .map(match => JSON.stringify(match))
+            .join(', ')}`,
+        ]
+      : []),
+    ...(allophoneMatches.length > 0
+      ? [
+          `allophone of ${allophoneMatches
+            .map(match => JSON.stringify(match))
+            .join(', ')}`,
+        ]
+      : []),
+  ].join('; ');
+  if (looseMatchesString) {
+    return <p className="text-warning">{looseMatchesString}</p>;
+  }
+
+  return <p className="text-danger">-</p>;
 }

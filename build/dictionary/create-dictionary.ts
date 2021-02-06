@@ -12,17 +12,19 @@ import {
 import { normalizeWordPronunciation } from './normalization';
 import { knownMetadataByLanguage } from '../lookups/metadata';
 import { englishCollator, getCollator } from '../utils/collation';
+import { getPhoibleData } from './phoible';
+import { ipaSymbols } from '../lookups/ipa-symbols';
 
 export interface Dictionary {
   data: Map<string, string[]>;
   metadata: Metadata;
 }
 
-export function createDictionary(
+export async function createDictionary(
   language: Language,
   wordPronunciations: WordPronunciation[],
-): Dictionary | null {
-  const metadata = getMetadata(language, wordPronunciations);
+): Promise<Dictionary> {
+  const metadata = await getMetadata(language, wordPronunciations);
 
   const pronunciationsByWord = new DefaultMap<string, Set<string>>(
     () => new Set(),
@@ -56,10 +58,10 @@ export function createDictionary(
   return { data, metadata };
 }
 
-function getMetadata(
+async function getMetadata(
   language: Language,
   wordPronunciations: WordPronunciation[],
-): Metadata {
+): Promise<Metadata> {
   const knownMetadata = knownMetadataByLanguage.get(language);
   if (knownMetadata) return knownMetadata;
 
@@ -67,7 +69,14 @@ function getMetadata(
     language,
     wordPronunciations,
   );
-  log(new MissingMetadataIssue(metadata, distributions));
+  const phoibleData = await getPhoibleData();
+  log(
+    new MissingMetadataIssue(
+      metadata,
+      distributions,
+      phoibleData.getOrCreate(language),
+    ),
+  );
   return metadata;
 }
 
@@ -94,7 +103,9 @@ function generateDummyMetadataAndDistributions(
   const phonemeStats = getCharacterStats(
     (function* () {
       for (const wordPronunciation of wordPronunciations) {
-        const phonemes = [...wordPronunciation.pronunciation];
+        const phonemes = [...wordPronunciation.pronunciation].filter(phoneme =>
+          ipaSymbols.has(phoneme),
+        );
         yield* phonemes;
       }
     })(),

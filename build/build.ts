@@ -27,7 +27,7 @@ async function main() {
     }
 
     console.log('Creating dictionaries.');
-    const dictionaries = createDictionaries(wordPronunciations);
+    const dictionaries = await createDictionaries(wordPronunciations);
 
     console.log('Writing dictionary files.');
     writeDictionaryFiles(dictionaries);
