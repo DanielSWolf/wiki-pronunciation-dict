@@ -1,3 +1,5 @@
+import { Replacement } from './metadata';
+
 /**
  * All segmental (non-decorated) IPA symbols
  */
@@ -33,6 +35,9 @@ export const ipaSymbols = new Set([
  */
 // prettier-ignore
 export const nonEssentialIpaSymbols = new Set([
+  // Segmentals
+  'ʔ', // glottal stop
+
   // Diacritics
   '\u02F3', '\u0325', // voiceless
   '\u02EC', '\u032C', // voiced
@@ -67,7 +72,8 @@ export const nonEssentialIpaSymbols = new Set([
   '\u02FA', '\u031A', // no audible release
 
   // Suprasegmentals
-  'ˈ', 'ˌ', 'ː', 'ˑ', '\u0306', '|', '‖', '.', '‿',
+  'ˈ', "'", // correct primary stress symbol vs. simple apostrophe
+  'ˌ', 'ː', 'ˑ', '\u0306', '|', '‖', '.', '‿',
 
   // Tone levels
   '\u030B', '˥', // extra high
@@ -88,4 +94,31 @@ export const nonEssentialIpaSymbols = new Set([
   '\u1DC8', // rising-falling
   '↗', // global rise
   '↘', // global fall
+
+  // Misc. symbols
+  ' ', // space
+  '-', // hyphen
+  'ˀ', // glottalization
+  'ˣ', // Gemination, see https://en.wikipedia.org/wiki/Finnish_phonology#Sandhi
+  'ᵊ', // Mid central vowel release, see https://en.wikipedia.org/wiki/%C6%8F
+  'ʱ', // Breathy voice, see https://en.wikipedia.org/wiki/Breathy_voice
+  'ᵐ',
+  'ᵑ',
+  '⁽', '⁾', // superscript parentheses
+  '\u030A', // combining ring above
+  '\u0361', // combining double inverted breve
+  '\u030D', // combining vertical line above
+  '\u035C', // combining double breve below
 ]);
+
+export const ipaReplacements: Replacement[] = [
+  [/ɚ/g, 'ə'],
+  [/ɝ/g, 'ɜ'],
+  [/ɫ/g, 'l'],
+  [/ä/g, 'a'], // see https://en.wikipedia.org/wiki/Open_central_unrounded_vowel
+];
+
+// Regular expressions that immediately disqualify any word they match without logging
+export const silentlyDisqualifyingIpaExpressions = [
+  /^-|-$/, // incomplete pronunciation
+];

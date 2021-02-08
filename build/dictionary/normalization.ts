@@ -1,4 +1,8 @@
-import { nonEssentialIpaSymbols } from '../lookups/ipa-symbols';
+import {
+  ipaReplacements,
+  nonEssentialIpaSymbols,
+  silentlyDisqualifyingIpaExpressions,
+} from '../lookups/ipa-symbols';
 import { log } from '../issue-logging';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 import { Metadata } from '../lookups/metadata';
@@ -57,8 +61,12 @@ export function normalizePronunciation(
   wordPronunciation: WordPronunciation,
   metadata: Metadata,
 ): string[] {
-  // Remove surrounding /.../ and [...]
   let normalized = wordPronunciation.pronunciation;
+
+  // Remove whitespace
+  normalized = normalized.replaceAll(/\s/g, '');
+
+  // Remove surrounding /.../ and [...]
   if (
     (normalized.startsWith('/') && normalized.endsWith('/')) ||
     (normalized.startsWith('[') && normalized.endsWith(']'))
@@ -66,13 +74,29 @@ export function normalizePronunciation(
     normalized = normalized.substring(1, normalized.length - 1);
   }
 
+  const disqualifySilently = silentlyDisqualifyingIpaExpressions.some(
+    disqualifyingExpression => disqualifyingExpression.test(normalized),
+  );
+  if (disqualifySilently) return [];
+
+  // Perform Canonical Decomposition of Unicode characters, so that we can easily remove decorations
+  // from IPA symbols
+  normalized = normalized.normalize('NFD');
+
   // Remove all non-essential symbols
   normalized = [...normalized]
     .filter(char => !nonEssentialIpaSymbols.has(char))
     .join('');
 
+  // Perform Canonical Composition of Unicode characters so that symbols like "ç" and "ä" become a
+  // single codepoint
+  normalized = normalized.normalize('NFC');
+
   // Apply replacements
-  for (const [regex, newValue] of metadata.phonemeReplacements ?? []) {
+  for (const [regex, newValue] of [
+    ...ipaReplacements,
+    ...(metadata.phonemeReplacements ?? []),
+  ]) {
     normalized = normalized.replaceAll(regex, newValue);
   }
 
@@ -93,6 +117,7 @@ export function normalizePronunciation(
       );
       return false;
     }
+
     return true;
   });
 
