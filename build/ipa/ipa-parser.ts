@@ -1,215 +1,454 @@
-import { IpaLetter, isIpaLetter } from './ipa-letters';
-import {
-  alt,
-  codePoints,
-  ExtendedParser,
-  ParserResult,
-  str,
-} from '../utils/parser-combinator';
-import { err, ok } from 'neverthrow';
+import { IpaLetter, ipaLetters, isIpaLetter } from './ipa-letters';
+import { err, ok, Result } from 'neverthrow';
+import { decomposeIpaString } from './decompose-ipa-string';
+import { createFlatMap } from '../utils/flat-map';
+import { isEqual } from 'lodash';
 
-enum Diacritic {
-  Voiceless = 'voiceless',
-  Voiced = 'voiced',
-  Aspirated = 'aspirated',
-  MoreRounded = 'moreRounded',
-  LessRounded = 'lessRounded',
-  Advanced = 'advanced',
-  Retracted = 'retracted',
-  Centralized = 'centralized',
-  MidCentralized = 'midCentralized',
-  Syllabic = 'syllabic',
-  NonSyllabic = 'nonSyllabic',
-  Rhoticity = 'rhoticity',
-  BreathyVoiced = 'breathyVoiced',
-  CreakyVoiced = 'creakyVoiced',
-  Linguolabial = 'linguolabial',
-  Labialized = 'labialized',
-  Palatalized = 'palatalized',
-  Velarized = 'velarized',
-  Pharyngealized = 'pharyngealized',
-  VelarizedOrPharyngealized = 'velarizedOrPharyngealized',
-  Raised = 'raised',
-  Lowered = 'lowered',
-  AdvancedTongueRoot = 'advancedTongueRoot',
-  RetractedTongueRoot = 'retractedTongueRoot',
-  Dental = 'dental',
-  Apical = 'apical',
-  Laminal = 'laminal',
-  Nasalized = 'nasalized',
-  NasalRelease = 'nasalRelease',
-  LateralRelease = 'lateralRelease',
-  NoAudibleRelease = 'noAudibleRelease',
+/**
+ * An IPA segment parsed from an IPA string.
+ * See https://en.wikipedia.org/wiki/Segment_(linguistics)
+ */
+export interface IpaSegment {
+  /** The IPA letter */
+  letter: IpaLetter;
+
+  /** The location of the IPA letter within the input string */
+  letterLocation: ParserLocation;
+
+  /** All diacritics belonging to the segment, along with their locations within the input string */
+  diacritics: Map<Diacritic, ParserLocation>;
+
+  /** All suprasegmentals before the segment, along with their locations within the input string */
+  left: Map<Suprasegmental, ParserLocation>;
+
+  /** All suprasegmentals after the segment, along with their locations within the input string */
+  right: Map<Suprasegmental, ParserLocation>;
+}
+
+/** A location within an input string */
+export interface ParserLocation {
+  /** The input string */
+  input: string;
+
+  /** The start index within the input string */
+  start: number;
+
+  /** The exclusive end index within the input string */
+  end: number;
+}
+
+/** An error that occurred trying to parse an IPA string */
+export interface ParserError {
+  /** The type of the error */
+  type: ParserErrorType;
+
+  /** The location where the error occurred within the input string */
+  location: ParserLocation;
+}
+
+/** The type of a parser error */
+export enum ParserErrorType {
+  /** The input string is not enclosed in '[]' or '//' pairs */
+  MissingDelimiters = 'missingDelimiters',
+
+  /** The input string contains a character that is not a common IPA character */
+  UnexpectedCharacter = 'unexpectedCharacter',
+
+  /** The input string appears to contain only the beginning or end of a pronunciation */
+  IncompletePronunciation = 'incompletePronunciation',
+
+  /** A diacritic symbol was encountered at a position other than immediately following a letter */
+  IllegalDiacriticPosition = 'illegalDiacriticPosition',
+}
+
+/** All valid [[Diacritic]] values */
+const diacritics = [
+  'voiceless',
+  'voiced',
+  'aspirated',
+  'moreRounded',
+  'lessRounded',
+  'advanced',
+  'retracted',
+  'centralized',
+  'midCentralized',
+  'syllabic',
+  'nonSyllabic',
+  'rhoticity',
+  'breathyVoiced',
+  'creakyVoiced',
+  'linguolabial',
+  'labialized',
+  'palatalized',
+  'velarized',
+  'pharyngealized',
+  'velarizedOrPharyngealized',
+  'raised',
+  'lowered',
+  'advancedTongueRoot',
+  'retractedTongueRoot',
+  'dental',
+  'apical',
+  'laminal',
+  'nasalized',
+  'nasalRelease',
+  'lateralRelease',
+  'noAudibleRelease',
 
   /** Non-standard. See https://en.wikipedia.org/wiki/Glottalization. */
-  Glottalized = 'glottalized',
+  'glottalized',
 
   /** Non-standard. See https://en.wikipedia.org/wiki/%C6%8F */
-  MidCentralVowelRelease = 'midCentralVowelRelease',
-}
+  'midCentralVowelRelease',
+] as const;
 
-enum Suprasegmental {
-  PrimaryStress = 'primaryStress',
-  SecondaryStress = 'secondaryStress',
-  Long = 'long',
-  HalfLong = 'halfLong',
-  ExtraShort = 'extraShort',
-  MinorGroup = 'minorGroup',
-  MajorGroup = 'majorGroup',
-  SyllableBreak = 'syllableBreak',
-  Linking = 'linking',
-  ExtraHigh = 'extraHigh',
-  High = 'high',
-  Mid = 'mid',
-  Low = 'low',
-  ExtraLow = 'extraLow',
-  Downstep = 'downstep',
-  Upstep = 'upstep',
-  Rising = 'rising',
-  Falling = 'falling',
-  HighRising = 'highRising',
-  LowRising = 'lowRising',
-  RisingFalling = 'risingFalling',
-  GlobalRise = 'globalRise',
-  GlobalFall = 'globalFall',
+/**
+ * An IPA diacritic.
+ * See https://en.wikipedia.org/wiki/International_Phonetic_Alphabet#Diacritics
+ */
+export type Diacritic = typeof diacritics[number];
+
+/** All valid [[Suprasegmental]] values */
+const suprasegmentals = [
+  'primaryStress',
+  'secondaryStress',
+  'long',
+  'halfLong',
+  'extraShort',
+  'minorGroup',
+  'majorGroup',
+  'syllableBreak',
+  'linking',
+  'extraHigh',
+  'high',
+  'mid',
+  'low',
+  'extraLow',
+  'downstep',
+  'upstep',
+  'rising',
+  'falling',
+  'highRising',
+  'lowRising',
+  'risingFalling',
+  'globalRise',
+  'globalFall',
 
   /** Non-standard. See https://en.wikipedia.org/wiki/Finnish_phonology#Sandhi. */
-  Gemination = 'gemination',
+  'gemination',
+] as const;
+
+/**
+ * An IPA suprasegmental.
+ * See https://en.wikipedia.org/wiki/International_Phonetic_Alphabet#Suprasegmentals
+ */
+export type Suprasegmental = typeof suprasegmentals[number];
+
+/** An IPA letter, diacritic, or suprasegmental, as found when lexing an IPA string */
+type IpaToken =
+  | { type: 'letter'; value: IpaLetter; location: ParserLocation }
+  | { type: 'diacritic'; value: Diacritic; location: ParserLocation }
+  | { type: 'suprasegmental'; value: Suprasegmental; location: ParserLocation };
+
+/**
+ * Parses an IPA string into IPA segments.
+ * @param input - An IPA pronunciation string as used on Wiktionary
+ * @returns A list of zero or more parsed pronunciations, each consisting of one or more IPA
+ *   segments.
+ */
+export function parseIpaString(
+  input: string,
+): Result<IpaSegment[][], ParserError> {
+  // Perform IPA-specific decomposition
+  input = decomposeIpaString(input);
+
+  // Trim surrounding whitespace
+  input = input.trim();
+
+  // Make sure there is a pronunciation
+  if (input === '') return ok([]);
+
+  // Remove surrounding /.../ and [...]
+  if (
+    (input.startsWith('/') && input.endsWith('/')) ||
+    (input.startsWith('[') && input.endsWith(']'))
+  ) {
+    input = input.substring(1, input.length - 1);
+  } else {
+    return err({
+      type: ParserErrorType.MissingDelimiters,
+      location: {
+        input,
+        start: 0,
+        end: input.length,
+      },
+    });
+  }
+
+  // Make sure pronunciation is complete
+  if (input.startsWith('-')) {
+    // Incomplete pronunciation: only suffix is specified
+    return err({
+      type: ParserErrorType.IncompletePronunciation,
+      location: { input, start: 0, end: 1 },
+    });
+  } else if (input.endsWith('-')) {
+    // Incomplete pronunciation: only prefix is specified
+    return err({
+      type: ParserErrorType.IncompletePronunciation,
+      location: {
+        input,
+        start: input.length - 1,
+        end: input.length,
+      },
+    });
+  }
+
+  const inputAlternatives = getAlternatives(input);
+  const resultAlternatives: IpaSegment[][] = [];
+  for (const inputAlternative of inputAlternatives) {
+    const tokensResult = lexSimpleIpaString(inputAlternative);
+    if (tokensResult.isErr()) return err(tokensResult.error);
+
+    const segmentsResult = tokensToSegments(tokensResult.value);
+    if (segmentsResult.isErr()) return err(segmentsResult.error);
+
+    const segments = segmentsResult.value;
+    const empty = segments.length > 0;
+    const alreadyKnown = resultAlternatives.some(knownResult =>
+      segmentListsAreEquivalent(knownResult, segments),
+    );
+    if (empty && !alreadyKnown) {
+      resultAlternatives.push(segments);
+    }
+  }
+
+  return ok(resultAlternatives);
 }
 
-type IpaFragment =
-  | { type: 'letter'; value: IpaLetter }
-  | { type: 'diacritic'; value: Diacritic }
-  | { type: 'suprasegmental'; value: Suprasegmental };
+/** Indicates whether two arrays of IPA segments are identical except for metadata */
+function segmentListsAreEquivalent(a: IpaSegment[], b: IpaSegment[]): boolean {
+  const simplify = (segments: IpaSegment[]) =>
+    segments.map(segment => [
+      segment.letter,
+      [...segment.diacritics.keys()],
+      [...segment.left.keys()],
+      [...segment.right.keys()],
+    ]);
+  return isEqual(simplify(a), simplify(b));
+}
 
-const ipaLetterParser: ExtendedParser<IpaLetter> = codePoints(
-  1,
-).tryMap(codePoint =>
-  isIpaLetter(codePoint) ? ok(codePoint) : err(['an IPA letter']),
+function tokensToSegments(
+  tokens: IpaToken[],
+): Result<IpaSegment[], ParserError> {
+  const segments: IpaSegment[] = [];
+
+  let diacritics = new Map<Diacritic, ParserLocation>();
+  let suprasegmentals = new Map<Suprasegmental, ParserLocation>();
+  let lastType: IpaToken['type'] | null = null;
+  for (const token of tokens) {
+    switch (token.type) {
+      case 'letter':
+        diacritics = new Map();
+        const oldSuprasegmentals = suprasegmentals;
+        suprasegmentals = new Map();
+        segments.push({
+          letter: token.value,
+          letterLocation: token.location,
+          diacritics,
+          left: oldSuprasegmentals,
+          right: suprasegmentals,
+        });
+        break;
+      case 'diacritic':
+        if (lastType !== 'letter' && lastType !== 'diacritic') {
+          return err({
+            type: ParserErrorType.IllegalDiacriticPosition,
+            location: token.location,
+          });
+        }
+        diacritics.set(token.value, token.location);
+        break;
+      case 'suprasegmental':
+        suprasegmentals.set(token.value, token.location);
+        break;
+    }
+    lastType = token.type;
+  }
+  return ok(segments);
+}
+
+/** All IPA letters by their string representation. (This one is trivial) */
+const letterMap = new Map<string, IpaLetter>(
+  ipaLetters.map(letter => [letter, letter]),
 );
 
-const diacriticParser: ExtendedParser<Diacritic> = alt(
-  alt(str('\u0325'), str('\u030A'), str('˳')).map(() => Diacritic.Voiceless),
-  alt(str('\u032C'), str('ˬ')).map(() => Diacritic.Voiced),
-  str('ʰ').map(() => Diacritic.Aspirated),
-  str('\u0339').map(() => Diacritic.MoreRounded),
-  str('\u031C').map(() => Diacritic.LessRounded),
-  alt(str('\u031F'), str('˖')).map(() => Diacritic.Advanced),
-  alt(str('\u0320'), str('ˍ')).map(() => Diacritic.Retracted),
-  str('\u0308').map(() => Diacritic.Centralized),
-  alt(str('\u033D'), str('˟')).map(() => Diacritic.MidCentralized),
-  alt(str('\u0329'), str('\u030D'), str('ˌ')).map(() => Diacritic.Syllabic),
-  str('\u032F').map(() => Diacritic.NonSyllabic),
-  str('\u02DE').map(() => Diacritic.Rhoticity),
-  alt(str('\u0324'), str('ʱ')).map(() => Diacritic.BreathyVoiced),
-  alt(str('\u0330'), str('˷')).map(() => Diacritic.CreakyVoiced),
-  str('\u033C').map(() => Diacritic.Linguolabial),
-  str('ʷ').map(() => Diacritic.Labialized),
-  str('ʲ').map(() => Diacritic.Palatalized),
-  str('ˠ').map(() => Diacritic.Velarized),
-  str('ˤ').map(() => Diacritic.Pharyngealized),
-  str('\u0334').map(() => Diacritic.VelarizedOrPharyngealized),
-  alt(str('\u031D'), str('˔')).map(() => Diacritic.Raised),
-  alt(str('\u031E'), str('˕')).map(() => Diacritic.Lowered),
-  str('\u0318').map(() => Diacritic.AdvancedTongueRoot),
-  str('\u0319').map(() => Diacritic.RetractedTongueRoot),
-  str('\u032A').map(() => Diacritic.Dental),
-  alt(str('\u033A'), str('˽')).map(() => Diacritic.Apical),
-  str('\u033B').map(() => Diacritic.Laminal),
-  str('\u0303').map(() => Diacritic.Nasalized),
-  str('ⁿ').map(() => Diacritic.NasalRelease),
-  str('ˡ').map(() => Diacritic.LateralRelease),
-  alt(str('\u031A'), str('˺')).map(() => Diacritic.NoAudibleRelease),
+/** All IPA diacritics by their string representation(s). */
+const diacriticMap = createFlatMap<string, Diacritic>([
+  [['\u0325', '\u030A', '˳'], 'voiceless'],
+  [['\u032C', 'ˬ'], 'voiced'],
+  [['ʰ'], 'aspirated'],
+  [['\u0339'], 'moreRounded'],
+  [['\u031C'], 'lessRounded'],
+  [['\u031F', '˖'], 'advanced'],
+  [['\u0320', 'ˍ'], 'retracted'],
+  [['\u0308'], 'centralized'],
+  [['\u033D', '˟'], 'midCentralized'],
+  [['\u0329', '\u030D'], 'syllabic'],
+  [['\u032F'], 'nonSyllabic'],
+  [['\u02DE'], 'rhoticity'],
+  [['\u0324', 'ʱ'], 'breathyVoiced'],
+  [['\u0330', '˷'], 'creakyVoiced'],
+  [['\u033C'], 'linguolabial'],
+  [['ʷ'], 'labialized'],
+  [['ʲ'], 'palatalized'],
+  [['ˠ'], 'velarized'],
+  [['ˤ'], 'pharyngealized'],
+  [['\u0334'], 'velarizedOrPharyngealized'],
+  [['\u031D', '˔'], 'raised'],
+  [['\u031E', '˕'], 'lowered'],
+  [['\u0318'], 'advancedTongueRoot'],
+  [['\u0319'], 'retractedTongueRoot'],
+  [['\u032A'], 'dental'],
+  [['\u033A', '˽'], 'apical'],
+  [['\u033B'], 'laminal'],
+  [['\u0303'], 'nasalized'],
+  [['ⁿ'], 'nasalRelease'],
+  [['ˡ'], 'lateralRelease'],
+  [['\u031A', '˺'], 'noAudibleRelease'],
 
   // Non-standard diacritics
-  str('ˀ').map(() => Diacritic.Glottalized),
-  str('ᵊ').map(() => Diacritic.MidCentralVowelRelease),
-);
+  [['ˀ'], 'glottalized'],
+  [['ᵊ'], 'midCentralVowelRelease'],
+]);
 
-const suprasegmentalParser: ExtendedParser<Suprasegmental> = alt(
-  alt(str('ˈ'), str("'")).map(() => Suprasegmental.PrimaryStress),
-  str('ˌ').map(() => Suprasegmental.SecondaryStress),
-  str('ː').map(() => Suprasegmental.Long),
-  str('ˑ').map(() => Suprasegmental.HalfLong),
-  str('\u0306').map(() => Suprasegmental.ExtraShort),
-  str('|').map(() => Suprasegmental.MinorGroup),
-  str('‖').map(() => Suprasegmental.MajorGroup),
-  str('.').map(() => Suprasegmental.SyllableBreak),
-  alt(str('\u035C'), str('\u0361'), str('‿')).map(() => Suprasegmental.Linking),
+/** All IPA suprasegmentals by their string representation(s). */
+const suprasegmentalMap = createFlatMap<string, Suprasegmental>([
+  [['ˈ', "'"], 'primaryStress'],
+  [['ˌ'], 'secondaryStress'],
+  [['ː'], 'long'],
+  [['ˑ'], 'halfLong'],
+  [['\u0306'], 'extraShort'],
+  [['|'], 'minorGroup'],
+  [['‖'], 'majorGroup'],
+  [['.'], 'syllableBreak'],
+  [['\u035C', '\u0361', '‿'], 'linking'],
 
   // The iconic pitch variation marks are a stub. There are many more possible combinations.
   // Should we actually need them one day, we'd have to extend this section.
-  alt(str('\u030B'), str('˥')).map(() => Suprasegmental.ExtraHigh),
-  alt(str('\u0301'), str('˦')).map(() => Suprasegmental.High),
-  alt(str('\u0304'), str('˧')).map(() => Suprasegmental.Mid),
-  alt(str('\u0300'), str('˨')).map(() => Suprasegmental.Low),
-  alt(str('\u030F'), str('˩')).map(() => Suprasegmental.ExtraLow),
-  str('ꜜ').map(() => Suprasegmental.Downstep),
-  str('ꜛ').map(() => Suprasegmental.Upstep),
-  alt(str('\u030C'), str('˩˥')).map(() => Suprasegmental.Rising),
-  alt(str('\u0302'), str('˥˩')).map(() => Suprasegmental.Falling),
-  alt(str('\u1DC4'), str('˧˥')).map(() => Suprasegmental.HighRising),
-  alt(str('\u1DC5'), str('˩˧')).map(() => Suprasegmental.LowRising),
-  alt(str('\u1DC8'), str('˧˦˨')).map(() => Suprasegmental.RisingFalling),
-  alt(str('↗')).map(() => Suprasegmental.GlobalRise),
-  alt(str('↘')).map(() => Suprasegmental.GlobalFall),
+  [['\u030B', '˥'], 'extraHigh'],
+  [['\u0301', '˦'], 'high'],
+  [['\u0304', '˧'], 'mid'],
+  [['\u0300', '˨'], 'low'],
+  [['\u030F', '˩'], 'extraLow'],
+  [['ꜜ'], 'downstep'],
+  [['ꜛ'], 'upstep'],
+  [['\u030C', '˩˥'], 'rising'],
+  [['\u0302', '˥˩'], 'falling'],
+  [['\u1DC4', '˧˥'], 'highRising'],
+  [['\u1DC5', '˩˧'], 'lowRising'],
+  [['\u1DC8', '˧˦˨'], 'risingFalling'],
+  [['↗'], 'globalRise'],
+  [['↘'], 'globalFall'],
 
   // Non-standard suprasegmentals
-  str('ˣ').map(() => Suprasegmental.Gemination),
-).describe(['a suprasegmental mark']);
+  [['ˣ'], 'gemination'],
+]);
 
-const ipaFragmentParser: ExtendedParser<IpaFragment> = alt(
-  ipaLetterParser.map(value => ({ type: 'letter', value } as const)),
-  diacriticParser.map(value => ({ type: 'diacritic', value } as const)),
-  suprasegmentalParser.map(
-    value => ({ type: 'suprasegmental', value } as const),
-  ),
+const maxMapKeyLength = Math.max(
+  ...[
+    ...letterMap.keys(),
+    ...diacriticMap.keys(),
+    ...suprasegmentalMap.keys(),
+  ].map(key => key.length),
 );
 
-interface IpaSegment {
-  letter: IpaLetter;
-  diacritics: Diacritic[];
-  leftSuprasegmentals: Suprasegmental[];
-  rightSuprasegmentals: Suprasegmental[];
-}
-
-function parseIpa(input: string): ParserResult<IpaSegment[]> {
-  const resultSegments: IpaSegment[] = [];
-
+/**
+ * Takes a "simple" IPA string and converts it into structured tokens.
+ *
+ * "Simple" here means that:
+ * - surrounding brackets or slashes must already be trimmed
+ * - embedded parentheses must already be applied
+ * - the input string must already be decomposed using `decomposeIpaString()`.
+ */
+function lexSimpleIpaString(input: string): Result<IpaToken[], ParserError> {
+  const result: IpaToken[] = [];
   let index = 0;
-  let diacritics: Diacritic[] = [];
-  let suprasegmentals: Suprasegmental[] = [];
-  for (const codePoint of input) {
-    const fragmentResult = ipaFragmentParser(input, index);
-    if (fragmentResult.isErr()) return err(fragmentResult.error);
-
-    const fragment = fragmentResult.value.value;
-    if (fragment.type === 'letter') {
-      const nextSuprasegmentals: Suprasegmental[] = [];
-      resultSegments.push({
-        letter: fragment.value,
-        diacritics,
-        leftSuprasegmentals: suprasegmentals,
-        rightSuprasegmentals: nextSuprasegmentals,
-      });
-      diacritics = [];
-      suprasegmentals = nextSuprasegmentals;
-    } else if (fragment.type === 'diacritic') {
-      // Diacritics only make sense after the first letter
-      if (resultSegments.length === 0) {
-        return err({
-          expected: ['an IPA letter', 'a suprasegmental mark'],
-          end: index,
-        });
+  while (index < input.length) {
+    // Try to find the token with the longest input length
+    let match: {
+      token: IpaToken | null;
+      substringLength: number;
+    } | null = null;
+    for (
+      let substringLength = Math.min(maxMapKeyLength, input.length - index);
+      match === null && substringLength > 0;
+      substringLength--
+    ) {
+      const end = index + substringLength;
+      const substring = input.substring(index, end);
+      const location = { input, start: index, end };
+      if (letterMap.has(substring)) {
+        match = {
+          token: {
+            type: 'letter',
+            value: letterMap.get(substring)!,
+            location,
+          },
+          substringLength,
+        };
+      } else if (diacriticMap.has(substring)) {
+        match = {
+          token: {
+            type: 'diacritic',
+            value: diacriticMap.get(substring)!,
+            location,
+          },
+          substringLength,
+        };
+      } else if (suprasegmentalMap.has(substring)) {
+        match = {
+          token: {
+            type: 'suprasegmental',
+            value: suprasegmentalMap.get(substring)!,
+            location,
+          },
+          substringLength,
+        };
+      } else if (isWhitespace(substring)) {
+        match = { token: null, substringLength };
       }
-
-      diacritics.push(fragment.value);
-    } else if (fragment.type === 'suprasegmental') {
-      suprasegmentals.push(fragment.value);
     }
 
-    index += codePoint.length;
+    if (match === null) {
+      return err({
+        type: ParserErrorType.UnexpectedCharacter,
+        location: { input, start: index, end: index + 1 },
+      });
+    }
+
+    if (match.token !== null) {
+      result.push(match.token);
+    }
+    index += match.substringLength;
   }
 
-  return ok({ value: resultSegments, end: index });
+  return ok(result);
+}
+
+function isWhitespace(s: string) {
+  return /^\s*$/.test(s);
+}
+
+/**
+ * Splits alternative spellings:
+ * "/ˈbaf(ə)lmənt/" is split into "/ˈbaflmənt/" and "/ˈbafəlmənt/".
+ */
+function getAlternatives(string: string): string[] {
+  const optionalRegex = /\((.*?)\)|⁽(.*?)⁾/g;
+  const minimalVersion = string.replaceAll(optionalRegex, '');
+  const maximalVersion = string.replaceAll(optionalRegex, '$1$2');
+  return minimalVersion === maximalVersion
+    ? [minimalVersion]
+    : [minimalVersion, maximalVersion];
 }
