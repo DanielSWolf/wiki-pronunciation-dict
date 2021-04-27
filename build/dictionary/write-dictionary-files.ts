@@ -1,59 +1,63 @@
 import { createWriteStream, emptyDirSync, writeFileSync } from 'fs-extra';
-import { pick } from 'lodash';
 import { join as joinPaths } from 'path';
 import { dictionariesDir } from '../directories';
-import { Metadata } from '../lookups/metadata';
+import { LanguageLookup } from '../languages/language-lookup';
 import { englishCollator, getCollator } from '../utils/collation';
 import { toCompactJson } from '../utils/to-compact-json';
-import { Dictionary } from './create-dictionary';
+import { Dictionary, DictionaryData } from './create-dictionary';
 
 export function writeDictionaryFiles(dictionaries: Dictionary[]) {
   emptyDirSync(dictionariesDir);
 
   for (const dictionary of dictionaries) {
-    writeDictionaryFile(dictionary);
+    writeDataFile(`${dictionary.language}-raw.json`, dictionary.rawData);
+    if (dictionary.data !== undefined) {
+      writeDataFile(`${dictionary.language}.json`, dictionary.data);
+
+      writeMetadataFile(
+        `${dictionary.language}-metadata.json`,
+        dictionary.languageLookup,
+      );
+    }
   }
-  writeMetadataFile(dictionaries);
 }
 
-function writeDictionaryFile(dictionary: Dictionary) {
-  const stream = createWriteStream(
-    joinPaths(
-      dictionariesDir,
-      `dictionry-${dictionary.metadata.language}.json`,
-    ),
-  );
+function writeDataFile(fileName: string, data: DictionaryData) {
+  const stream = createWriteStream(joinPaths(dictionariesDir, fileName));
   try {
     stream.write('{\n');
-    for (const [word, pronunciations] of dictionary.data) {
+    let index = 0;
+    for (const [word, pronunciations] of data) {
       stream.write(
         `  ${JSON.stringify(word)}: [${pronunciations
           .map(p => JSON.stringify(p))
-          .join(', ')}],\n`,
+          .join(', ')}]${index < data.size - 1 ? ',' : ''}\n`,
       );
+      index++;
     }
-    stream.write('};\n');
+    stream.write('}\n');
   } finally {
     stream.end();
   }
 }
 
-function writeMetadataFile(dictionaries: Dictionary[]) {
-  const path = joinPaths(dictionariesDir, 'metadata.json');
-  const metadata = dictionaries.map(dictionary =>
-    transformLanguageMetadata(dictionary.metadata),
-  );
-  writeFileSync(path, toCompactJson(metadata));
-}
-
-function transformLanguageMetadata(metadata: Metadata) {
-  const { language, description } = metadata;
+function writeMetadataFile(
+  fileName: string,
+  languageLookup: LanguageLookup<any, any>,
+) {
+  const { language, languageName } = languageLookup;
 
   // Order graphemes using language-specific sorting rules
-  const graphemes = [...metadata.graphemes].sort(getCollator(language).compare);
+  const graphemes = [...languageLookup.graphemes].sort(
+    getCollator(languageLookup.language).compare,
+  );
 
   // Order phonemes using English sorting rules
-  const phonemes = [...metadata.phonemes].sort(englishCollator.compare);
+  const phonemes = [...languageLookup.phonemes].sort(englishCollator.compare);
 
-  return { language, description, graphemes, phonemes };
+  const path = joinPaths(dictionariesDir, fileName);
+  writeFileSync(
+    path,
+    toCompactJson({ language, languageName, graphemes, phonemes }),
+  );
 }

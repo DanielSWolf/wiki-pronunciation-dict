@@ -1,103 +1,82 @@
-import { join as joinStrings } from 'path';
-import memoize from 'memoizee';
+import { join as joinPaths } from 'path';
 import parseCsv from 'csv-parse';
-import { alpha3TToAlpha2 } from '@cospired/i18n-iso-languages';
-import { downloadFile } from '../utils/download-file';
 import { downloadsDir } from '../directories';
+import { downloadFile } from '../utils/download-file';
 import { createReadStream } from 'fs';
 import { Language } from '../language';
+import { alpha3TToAlpha2 } from '@cospired/i18n-iso-languages';
 import { DefaultMap } from '../utils/default-map';
-import { ipaSymbols } from '../lookups/ipa-symbols';
+import memoize from 'memoizee';
 
-export type PhoibleData = DefaultMap<Language, PhoibleLanguageRecord>;
+// Phoible (https://phoible.org/) is a linguistic database. For each language, it contains zero or
+// more "inventories". Each inventory is one possible way of grouping this language's sounds into
+// phonemes.
+// Phoible data is used to generate statistics to help a developer choose the phonemes for a
+// language.
 
-export interface PhoibleLanguageRecord {
-  language: Language;
-  inventories: DefaultMap<PhoibleInventoryId, PhoibleInventory>;
-}
-
-export type PhoibleInventoryId = number;
+export type PhoibleData = ReadonlyMap<Language, PhoibleInventory[]>;
 
 export interface PhoibleInventory {
-  inventoryId: PhoibleInventoryId;
-  inventoryName: string;
+  id: number;
+  name: string;
   language: Language;
-  entries: PhoibleInventoryEntry[];
-}
-
-export interface PhoibleInventoryEntry {
-  /** Phoneme, simplified to segmental IPA symbols */
-  phoneme: string;
-
-  /** Allophones, simplified to segmental IPA symbols */
-  allophones: string[];
+  corePhonemes: string[];
+  marginalPhonemes: string[];
 }
 
 export const getPhoibleData = memoize(
-  async function getPhoibleData(): Promise<PhoibleData> {
-    const mappingsFilePath = joinStrings(downloadsDir, 'phoible-mappings.csv');
-    await downloadFile(
-      'https://raw.githubusercontent.com/phoible/dev/712bbb8e75adba5f58e0752124448e1afe56ed34/mappings/InventoryID-LanguageCodes.csv',
-      mappingsFilePath,
-      { description: 'Phoible mappings', skipIfExists: true },
-    );
-
-    const mappingsStream = createReadStream(mappingsFilePath).pipe(
-      parseCsv({ columns: true }),
-    );
-    const inventoryNamesById = new Map<PhoibleInventoryId, string>();
-    for await (const row of mappingsStream) {
-      const inventoryId = parseInt(row.InventoryID, 10);
-      const inventoryName: string = row.LanguageName;
-      inventoryNamesById.set(inventoryId, inventoryName);
-    }
-
-    const dataFilePath = joinStrings(downloadsDir, 'phoible.csv');
+  async (): Promise<PhoibleData> => {
+    // Create CSV stream for Phoible data
+    const phoibleFilePath = joinPaths(downloadsDir, 'phoible.csv');
     await downloadFile(
       'https://raw.githubusercontent.com/phoible/dev/master/data/phoible.csv',
-      dataFilePath,
+      phoibleFilePath,
       { description: 'Phoible data', skipIfExists: true },
     );
-
-    const data: PhoibleData = new DefaultMap(language => ({
-      language,
-      inventories: new DefaultMap(inventoryId => ({
-        inventoryId,
-        inventoryName: inventoryNamesById.get(inventoryId)!,
-        language,
-        entries: [],
-      })),
-    }));
-
-    const dataStream = createReadStream(dataFilePath).pipe(
+    const csvStream = createReadStream(phoibleFilePath).pipe(
       parseCsv({ columns: true }),
     );
-    for await (const row of dataStream) {
-      const inventoryId = parseInt(row.InventoryID, 10);
 
+    // Read Phoible inventories
+    const inventoriesById = new Map<string, PhoibleInventory>();
+    for await (const row of csvStream) {
       const language = alpha3TToAlpha2(row.ISO6393);
       if (language === undefined) continue;
 
-      const phoneme = simplifyIpa(row.Phoneme);
-      const allophones = [
-        ...new Set(
-          (row.Allophones as string)
-            .split(' ')
-            .map(simplifyIpa)
-            .filter(Boolean),
-        ),
-      ];
+      const inventoryId = row.InventoryID;
+      const inventory = getOrCreate(inventoriesById, inventoryId, () => ({
+        id: inventoryId,
+        name: row.LanguageName, // The "LanguageName" entry really is the inventory name
+        language,
+        corePhonemes: [],
+        marginalPhonemes: [],
+      }));
 
-      data
-        .getOrCreate(language)
-        .inventories.getOrCreate(inventoryId)
-        .entries.push({ phoneme, allophones });
+      const marginal = row.Marginal === 'TRUE';
+      // Some inventories contain multiple variations of the same phoneme. Ignore all but the first.
+      const phoneme = (row.Phoneme as string).split('|')[0];
+      (marginal ? inventory.marginalPhonemes : inventory.corePhonemes).push(
+        phoneme,
+      );
     }
 
-    return data;
+    // Group inventories by language
+    const result = new DefaultMap<Language, PhoibleInventory[]>(() => []);
+    for (const inventory of inventoriesById.values()) {
+      result.getOrCreate(inventory.language).push(inventory);
+    }
+    return result;
   },
 );
 
-function simplifyIpa(ipaString: string): string {
-  return [...ipaString].filter(char => ipaSymbols.has(char)).join('');
+function getOrCreate<TKey, TValue>(
+  map: Map<TKey, TValue>,
+  key: TKey,
+  createValue: (key: TKey) => TValue,
+): TValue {
+  if (map.has(key)) return map.get(key)!;
+
+  const value = createValue(key);
+  map.set(key, value);
+  return value;
 }

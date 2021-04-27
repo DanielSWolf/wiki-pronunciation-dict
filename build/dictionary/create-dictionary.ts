@@ -1,39 +1,70 @@
-import { getName } from '@cospired/i18n-iso-languages';
-import { orderBy } from 'lodash';
 import { log } from '../issue-logging';
 import { Language } from '../language';
-import { Metadata } from '../lookups/metadata';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
-import { DefaultMap } from '../utils/default-map';
-import {
-  Distributions,
-  MissingMetadataIssue,
-} from './dictionary-creation-issues';
-import { normalizeWordPronunciation } from './normalization';
-import { knownMetadataByLanguage } from '../lookups/metadata';
-import { englishCollator, getCollator } from '../utils/collation';
 import { getPhoibleData } from './phoible';
-import { ipaSymbols } from '../lookups/ipa-symbols';
+import { LanguageLookup } from '../languages/language-lookup';
+import { getLanguageLookup } from '../languages/get-language-lookup';
+import { MissingLanguageLookupIssue } from './issues/missing-language-lookup-issue';
+import { normalizeWordPronunciation } from './normalization';
+import { DefaultMap } from '../utils/default-map';
+import { englishCollator, getCollator } from '../utils/collation';
+import { sortMap } from '../utils/sort-map';
 
-export interface Dictionary {
-  data: Map<string, string[]>;
-  metadata: Metadata;
+export type Dictionary =
+  | (RawDictionary & Partial<Record<keyof NormalizedDictionary, undefined>>)
+  | (RawDictionary & NormalizedDictionary);
+
+interface RawDictionary {
+  language: Language;
+
+  /** Original pronunciations by original word spellings */
+  rawData: DictionaryData;
 }
+
+interface NormalizedDictionary {
+  /** Normalized pronunciations by normalized word spellings */
+  data: DictionaryData;
+
+  /** Information about the language. */
+  languageLookup: LanguageLookup<any, any>;
+}
+
+export type DictionaryData = Map<string, string[]>;
 
 export async function createDictionary(
   language: Language,
   wordPronunciations: WordPronunciation[],
 ): Promise<Dictionary> {
-  const metadata = await getMetadata(language, wordPronunciations);
+  const rawData = getData(wordPronunciations, language, wordPronunciation => [
+    wordPronunciation,
+  ]);
 
+  const languageLookup = getLanguageLookup(language);
+  if (languageLookup === null) {
+    const phoibleData = await getPhoibleData();
+    log(
+      new MissingLanguageLookupIssue(language, wordPronunciations, phoibleData),
+    );
+    return { language, rawData };
+  }
+
+  const data = getData(wordPronunciations, language, wordPronunciation =>
+    normalizeWordPronunciation(wordPronunciation, languageLookup),
+  );
+  return { language, rawData, data, languageLookup };
+}
+
+function getData(
+  wordPronunciations: WordPronunciation[],
+  language: Language,
+  normalize: (wordPronunciation: WordPronunciation) => WordPronunciation[],
+): Map<string, string[]> {
+  // Group normalized pronunciations by word
   const pronunciationsByWord = new DefaultMap<string, Set<string>>(
     () => new Set(),
   );
   for (const wordPronunciation of wordPronunciations) {
-    const normalizedWordPronunciations = normalizeWordPronunciation(
-      wordPronunciation,
-      metadata,
-    );
+    const normalizedWordPronunciations = normalize(wordPronunciation);
     for (const normalizedWordPronunciation of normalizedWordPronunciations) {
       pronunciationsByWord
         .getOrCreate(normalizedWordPronunciation.word)
@@ -41,112 +72,15 @@ export async function createDictionary(
     }
   }
 
+  // Sort by word
   const languageCollator = getCollator(language);
-  const sortedWords = [...pronunciationsByWord.keys()].sort(
-    languageCollator.compare,
+  sortMap(pronunciationsByWord, (a, b) => languageCollator.compare(a[0], b[0]));
+
+  // Sort pronunciations
+  return new Map(
+    [...pronunciationsByWord].map(([word, pronunciations]) => [
+      word,
+      [...pronunciations].sort(englishCollator.compare),
+    ]),
   );
-  const data = new Map<string, string[]>(
-    sortedWords.map(word => {
-      const pronunciations = pronunciationsByWord.get(word)!;
-      const sortedPronunciations = [...pronunciations].sort(
-        englishCollator.compare,
-      );
-      return [word, sortedPronunciations];
-    }),
-  );
-
-  return { data, metadata };
-}
-
-async function getMetadata(
-  language: Language,
-  wordPronunciations: WordPronunciation[],
-): Promise<Metadata> {
-  const knownMetadata = knownMetadataByLanguage.get(language);
-  if (knownMetadata) return knownMetadata;
-
-  const { metadata, distributions } = generateDummyMetadataAndDistributions(
-    language,
-    wordPronunciations,
-  );
-  const phoibleData = await getPhoibleData();
-  log(
-    new MissingMetadataIssue(
-      metadata,
-      distributions,
-      phoibleData.getOrCreate(language),
-    ),
-  );
-  return metadata;
-}
-
-function generateDummyMetadataAndDistributions(
-  language: Language,
-  wordPronunciations: WordPronunciation[],
-) {
-  const description = getName(language, 'en') ?? language;
-
-  const graphemeStats = getCharacterStats(
-    (function* () {
-      const words = new Set(
-        [...wordPronunciations].map(wordPronunciation =>
-          wordPronunciation.word.toLocaleLowerCase(language),
-        ),
-      );
-      for (const word of words) {
-        const graphemes = [...word];
-        yield* graphemes;
-      }
-    })(),
-  );
-
-  const phonemeStats = getCharacterStats(
-    (function* () {
-      for (const wordPronunciation of wordPronunciations) {
-        const phonemes = [...wordPronunciation.pronunciation].filter(phoneme =>
-          ipaSymbols.has(phoneme),
-        );
-        yield* phonemes;
-      }
-    })(),
-  );
-
-  const metadata: Metadata = {
-    language,
-    description,
-    graphemes: graphemeStats.characters,
-    phonemes: phonemeStats.characters,
-    graphemeReplacements: [],
-    phonemeReplacements: [],
-  };
-
-  const distributions: Distributions = {
-    graphemeDistribution: graphemeStats.distribution,
-    phonemeDistribution: phonemeStats.distribution,
-  };
-
-  return { metadata, distributions };
-}
-
-function getCharacterStats(characters: Iterable<string>) {
-  const characterCounts = new DefaultMap<string, number>(() => 0);
-  let totalCharacterCount = 0;
-  for (const character of characters) {
-    characterCounts.set(character, characterCounts.getOrCreate(character) + 1);
-    totalCharacterCount++;
-  }
-  const sortedCharacterCounts = orderBy(
-    [...characterCounts],
-    ([character, count]) => count,
-    'desc',
-  );
-  return {
-    characters: sortedCharacterCounts.map(([character, count]) => character),
-    distribution: new Map(
-      sortedCharacterCounts.map(([character, count]) => [
-        character,
-        count / totalCharacterCount,
-      ]),
-    ),
-  };
 }

@@ -4,7 +4,7 @@ import {
   Diacritic,
   IpaSegment,
   parseIpaString,
-  ParserErrorType,
+  IpaParserErrorType,
   ParserLocation,
   Suprasegmental,
 } from '../../build/ipa/ipa-parser';
@@ -29,7 +29,7 @@ describe('parseIpaString', () => {
   it('fails on unsupported characters', () => {
     expect(parseIpaString('[abc?]')).toEqual(
       err({
-        type: ParserErrorType.UnexpectedCharacter,
+        type: IpaParserErrorType.UnexpectedCharacter,
         location: l('abc?', 3, 4),
       }),
     );
@@ -45,7 +45,7 @@ describe('parseIpaString', () => {
     test.each(['abc', '[abc', 'abc]', '/abc', 'abc/'])('%s', input => {
       expect(parseIpaString(input)).toEqual(
         err({
-          type: ParserErrorType.MissingDelimiters,
+          type: IpaParserErrorType.MissingDelimiters,
           location: l(input, 0, input.length),
         }),
       );
@@ -61,7 +61,7 @@ describe('parseIpaString', () => {
     ])('%s', (input, location) => {
       expect(parseIpaString(input)).toEqual(
         err({
-          type: ParserErrorType.IncompletePronunciation,
+          type: IpaParserErrorType.IncompletePronunciation,
           location,
         }),
       );
@@ -193,7 +193,7 @@ describe('parseIpaString', () => {
     test('at start of pronunciation', () => {
       expect(parseIpaString('/\u0308a/')).toEqual(
         err({
-          type: ParserErrorType.IllegalDiacriticPosition,
+          type: IpaParserErrorType.IllegalDiacriticPosition,
           location: l('\u0308a', 0, 1),
         }),
       );
@@ -202,7 +202,7 @@ describe('parseIpaString', () => {
     test('after suprasegmental', () => {
       expect(parseIpaString('/ɑːʰ/')).toEqual(
         err({
-          type: ParserErrorType.IllegalDiacriticPosition,
+          type: IpaParserErrorType.IllegalDiacriticPosition,
           location: l('ɑːʰ', 2, 3),
         }),
       );

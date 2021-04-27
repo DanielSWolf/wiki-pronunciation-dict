@@ -3,10 +3,9 @@ import { createDictionary, Dictionary } from './create-dictionary';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
 import { createGroupedMap } from '../utils/create-grouped-map';
 import { orderBy } from 'lodash';
-import { unsupportedLanguages } from '../lookups/unsupported-languages';
 import { nodeSupportsLanguage } from '../utils/i18n';
 import { log } from '../issue-logging';
-import { LanguageNotSupportedByNodeIssue } from './dictionary-creation-issues';
+import { LanguageNotSupportedByNodeIssue } from './issues/language-not-supported-by-node-issue';
 
 const minWordCountPerDictionary = 10000;
 
@@ -26,9 +25,6 @@ export async function createDictionaries(
     );
     // Omit languages with too few words
     if (distinctWords.size < minWordCountPerDictionary) return false;
-
-    // Omit unsupported languages
-    if (unsupportedLanguages.includes(language)) return false;
 
     // Omit languages with unsupported language code
     if (!nodeSupportsLanguage(language)) {
@@ -54,8 +50,8 @@ export async function createDictionaries(
   return orderBy(
     dictionaries,
     [
-      dictionary => (dictionary.metadata.language === 'en' ? 0 : 1), // Put English dictionary first
-      dictionary => dictionary.data.size, // Sort the rest by descending size
+      dictionary => (dictionary.language === 'en' ? 0 : 1), // Put English dictionary first
+      dictionary => (dictionary.data ?? dictionary.rawData).size, // Sort the rest by descending size
     ],
     ['asc', 'desc'],
   );

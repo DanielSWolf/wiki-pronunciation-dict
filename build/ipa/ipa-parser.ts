@@ -38,20 +38,20 @@ export interface ParserLocation {
 }
 
 /** An error that occurred trying to parse an IPA string */
-export interface ParserError {
+export interface IpaParserError {
   /** The type of the error */
-  type: ParserErrorType;
+  type: IpaParserErrorType;
 
   /** The location where the error occurred within the input string */
   location: ParserLocation;
 }
 
 /** The type of a parser error */
-export enum ParserErrorType {
+export enum IpaParserErrorType {
   /** The input string is not enclosed in '[]' or '//' pairs */
   MissingDelimiters = 'missingDelimiters',
 
-  /** The input string contains a character that is not a common IPA character */
+  /** The input string contains a character that is not a common IPA symbol */
   UnexpectedCharacter = 'unexpectedCharacter',
 
   /** The input string appears to contain only the beginning or end of a pronunciation */
@@ -158,7 +158,7 @@ type IpaToken =
  */
 export function parseIpaString(
   input: string,
-): Result<IpaSegment[][], ParserError> {
+): Result<IpaSegment[][], IpaParserError> {
   // Perform IPA-specific decomposition
   input = decomposeIpaString(input);
 
@@ -176,7 +176,7 @@ export function parseIpaString(
     input = input.substring(1, input.length - 1);
   } else {
     return err({
-      type: ParserErrorType.MissingDelimiters,
+      type: IpaParserErrorType.MissingDelimiters,
       location: {
         input,
         start: 0,
@@ -189,13 +189,13 @@ export function parseIpaString(
   if (input.startsWith('-')) {
     // Incomplete pronunciation: only suffix is specified
     return err({
-      type: ParserErrorType.IncompletePronunciation,
+      type: IpaParserErrorType.IncompletePronunciation,
       location: { input, start: 0, end: 1 },
     });
   } else if (input.endsWith('-')) {
     // Incomplete pronunciation: only prefix is specified
     return err({
-      type: ParserErrorType.IncompletePronunciation,
+      type: IpaParserErrorType.IncompletePronunciation,
       location: {
         input,
         start: input.length - 1,
@@ -240,7 +240,7 @@ function segmentListsAreEquivalent(a: IpaSegment[], b: IpaSegment[]): boolean {
 
 function tokensToSegments(
   tokens: IpaToken[],
-): Result<IpaSegment[], ParserError> {
+): Result<IpaSegment[], IpaParserError> {
   const segments: IpaSegment[] = [];
 
   let diacritics = new Map<Diacritic, ParserLocation>();
@@ -263,7 +263,7 @@ function tokensToSegments(
       case 'diacritic':
         if (lastType !== 'letter' && lastType !== 'diacritic') {
           return err({
-            type: ParserErrorType.IllegalDiacriticPosition,
+            type: IpaParserErrorType.IllegalDiacriticPosition,
             location: token.location,
           });
         }
@@ -371,7 +371,7 @@ const maxMapKeyLength = Math.max(
  * - embedded parentheses must already be applied
  * - the input string must already be decomposed using `decomposeIpaString()`.
  */
-function lexSimpleIpaString(input: string): Result<IpaToken[], ParserError> {
+function lexSimpleIpaString(input: string): Result<IpaToken[], IpaParserError> {
   const result: IpaToken[] = [];
   let index = 0;
   while (index < input.length) {
@@ -422,7 +422,7 @@ function lexSimpleIpaString(input: string): Result<IpaToken[], ParserError> {
 
     if (match === null) {
       return err({
-        type: ParserErrorType.UnexpectedCharacter,
+        type: IpaParserErrorType.UnexpectedCharacter,
         location: { input, start: index, end: index + 1 },
       });
     }

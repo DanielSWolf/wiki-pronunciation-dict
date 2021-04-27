@@ -1,24 +1,119 @@
+import { zip } from 'lodash';
+import { IpaLetter } from '../ipa/ipa-letters';
 import {
-  ipaReplacements,
-  nonEssentialIpaSymbols,
-  silentlyDisqualifyingIpaExpressions,
-} from '../lookups/ipa-symbols';
+  Diacritic,
+  IpaParserErrorType,
+  IpaSegment,
+  parseIpaString,
+  ParserLocation,
+  Suprasegmental,
+} from '../ipa/ipa-parser';
 import { log } from '../issue-logging';
+import { excludeSymbol, LanguageLookup } from '../languages/language-lookup';
 import { WordPronunciation } from '../pronunciation-sources.ts/pronunciation-source';
-import { Metadata } from '../lookups/metadata';
-import {
-  InvalidGraphemeInWordIssue,
-  InvalidPhonemeInPronunciationIssue,
-} from './dictionary-creation-issues';
+import { InvalidCharacterInWordIssue } from './issues/invalid-character-in-word-issue';
+import { PronunciationNormalizationIssue } from './issues/pronunciation-normalization-issue';
+
+/** A declarative predicate for matching an IPA segment */
+export interface IpaSegmentMatcher {
+  /** The desired IPA letter */
+  letter: IpaLetter;
+
+  /**
+   * The desired diacritics.
+   * Any additional diacritics on a given segment are ignored.
+   */
+  diacritics?: Partial<Record<Diacritic, boolean>>;
+
+  /**
+   * The desired suprasegmentals to appear before the IPA letter.
+   * Any additional suprasegmentals before the letter are ignored.
+   */
+  left?: Partial<Record<Suprasegmental, boolean>>;
+
+  /**
+   * The desired suprasegmentals to appear after the IPA letter.
+   * Any additional suprasegmentals after the letter are ignored.
+   */
+  right?: Partial<Record<Suprasegmental, boolean>>;
+}
+
+function normalizeWord<TGrapheme extends string>(
+  wordPronunciation: WordPronunciation,
+  languageLookup: LanguageLookup<TGrapheme, any>,
+): string | null {
+  const lowerCaseWord = wordPronunciation.word
+    .normalize('NFC')
+    .toLocaleLowerCase(languageLookup.language);
+
+  // Ignore incomplete words
+  if (lowerCaseWord.startsWith('-') || lowerCaseWord.endsWith('-')) {
+    return null;
+  }
+
+  const graphemes: TGrapheme[] = [];
+  let index = 0;
+  while (index < lowerCaseWord.length) {
+    const graphemeRule = languageLookup.graphemeRules.find(
+      ([expectedInputSequence, result]) => {
+        const substring = lowerCaseWord.substring(
+          index,
+          index + expectedInputSequence.length,
+        );
+        return substring === expectedInputSequence;
+      },
+    );
+    if (graphemeRule === undefined) {
+      // No rule matches the input string
+      log(
+        new InvalidCharacterInWordIssue(
+          wordPronunciation,
+          lowerCaseWord,
+          lowerCaseWord[index],
+        ),
+      );
+      return null;
+    }
+
+    if (graphemeRule[1] === excludeSymbol) {
+      // Silently exclude the word
+      return null;
+    }
+
+    // Add the graphemes to the result
+    graphemes.push(...graphemeRule[1]);
+
+    index += graphemeRule[0].length;
+  }
+
+  return graphemes.join('');
+}
+
+/** Compatible with IpaParserError */
+export interface PronunciationNormalizationError {
+  /** The type of the error */
+  type: IpaParserErrorType | PronunciationNormalizationErrorType;
+
+  /** The location where the error occurred within the input string */
+  location: ParserLocation;
+}
+
+export enum PronunciationNormalizationErrorType {
+  /** The IPA segment isn't supported by the current language */
+  UnsupportedIpaSegment = 'unsupportedIpaSegment',
+}
 
 export function normalizeWordPronunciation(
   wordPronunciation: WordPronunciation,
-  metadata: Metadata,
+  languageLookup: LanguageLookup<any, any>,
 ): WordPronunciation[] {
-  const word = normalizeWord(wordPronunciation, metadata);
+  const word = normalizeWord(wordPronunciation, languageLookup);
   if (word === null) return [];
 
-  const pronunciations = normalizePronunciation(wordPronunciation, metadata);
+  const pronunciations = normalizePronunciation(
+    wordPronunciation,
+    languageLookup,
+  );
   return pronunciations.map(pronunciation => ({
     sourceEdition: wordPronunciation.sourceEdition,
     language: wordPronunciation.language,
@@ -27,108 +122,102 @@ export function normalizeWordPronunciation(
   }));
 }
 
-export function normalizeWord(
+function normalizePronunciation<TPhoneme extends string>(
   wordPronunciation: WordPronunciation,
-  metadata: Metadata,
-): string | null {
-  // Convert to lower case, honoring any language-specific rules
-  let normalized = wordPronunciation.word.toLocaleLowerCase(metadata.language);
-
-  // Apply replacements
-  for (const [regex, newValue] of metadata.graphemeReplacements ?? []) {
-    normalized = normalized.replaceAll(regex, newValue);
-  }
-
-  // Check that the result consists only of valid graphemes
-  const invalidGrapheme = [...normalized].find(
-    grapheme => !metadata.graphemes.includes(grapheme),
-  );
-  if (invalidGrapheme) {
+  languageLookup: LanguageLookup<any, TPhoneme>,
+): string[] {
+  const segmentsResult = parseIpaString(wordPronunciation.pronunciation);
+  if (segmentsResult.isErr()) {
     log(
-      new InvalidGraphemeInWordIssue(
+      new PronunciationNormalizationIssue(
         wordPronunciation,
-        normalized,
-        invalidGrapheme,
+        segmentsResult.error,
       ),
     );
-    return null;
+    return [];
   }
 
-  return normalized;
+  const segmentSequenceAlternatives = segmentsResult.value;
+  return segmentSequenceAlternatives
+    .map(segments =>
+      segmentsToPhonemes(segments, wordPronunciation, languageLookup),
+    )
+    .filter(Boolean)
+    .map(phonemes => phonemes!.join(' '));
 }
 
-export function normalizePronunciation(
+function segmentsToPhonemes<TPhoneme extends string>(
+  segments: IpaSegment[],
   wordPronunciation: WordPronunciation,
-  metadata: Metadata,
-): string[] {
-  let normalized = wordPronunciation.pronunciation;
-
-  // Remove whitespace
-  normalized = normalized.replaceAll(/\s/g, '');
-
-  // Remove surrounding /.../ and [...]
-  if (
-    (normalized.startsWith('/') && normalized.endsWith('/')) ||
-    (normalized.startsWith('[') && normalized.endsWith(']'))
-  ) {
-    normalized = normalized.substring(1, normalized.length - 1);
-  }
-
-  const disqualifySilently = silentlyDisqualifyingIpaExpressions.some(
-    disqualifyingExpression => disqualifyingExpression.test(normalized),
-  );
-  if (disqualifySilently) return [];
-
-  // Perform Canonical Decomposition of Unicode characters, so that we can easily remove decorations
-  // from IPA symbols
-  normalized = normalized.normalize('NFD');
-
-  // Remove all non-essential symbols
-  normalized = [...normalized]
-    .filter(char => !nonEssentialIpaSymbols.has(char))
-    .join('');
-
-  // Perform Canonical Composition of Unicode characters so that symbols like "ç" and "ä" become a
-  // single codepoint
-  normalized = normalized.normalize('NFC');
-
-  // Apply replacements
-  for (const [regex, newValue] of [
-    ...ipaReplacements,
-    ...(metadata.phonemeReplacements ?? []),
-  ]) {
-    normalized = normalized.replaceAll(regex, newValue);
-  }
-
-  // Handle alternatives
-  const alternatives = getAlternatives(normalized);
-
-  // Check that all alternatives consist only of valid phonemes
-  const validAlternatives = alternatives.filter(alternative => {
-    const invalidPhoneme = [...alternative].find(
-      phoneme => !metadata.phonemes.includes(phoneme),
+  languageLookup: LanguageLookup<any, TPhoneme>,
+): TPhoneme[] | null {
+  const phonemes: TPhoneme[] = [];
+  let index = 0;
+  while (index < segments.length) {
+    const phonemeRule = languageLookup.phonemeRules.find(
+      ([matcherSequence, result]) => {
+        const slice = segments.slice(index, index + matcherSequence.length);
+        if (slice.length < matcherSequence.length) return false;
+        return zip(slice, matcherSequence).every(([segment, matcher]) =>
+          segmentMatches(segment!, matcher!),
+        );
+      },
     );
-    if (invalidPhoneme) {
+    if (phonemeRule === undefined) {
+      // No rule matches the input segments
       log(
-        new InvalidPhonemeInPronunciationIssue(
-          wordPronunciation,
-          invalidPhoneme,
-        ),
+        new PronunciationNormalizationIssue(wordPronunciation, {
+          type: PronunciationNormalizationErrorType.UnsupportedIpaSegment,
+          location: segments[index].letterLocation,
+        }),
       );
-      return false;
+      return null;
     }
 
-    return true;
-  });
+    if (phonemeRule[1] === excludeSymbol) {
+      // Silently exclude the word
+      return null;
+    }
 
-  return validAlternatives;
+    // Add the phonemes to the result
+    phonemes.push(...phonemeRule[1]);
+
+    index += phonemeRule[0].length;
+  }
+
+  return phonemes;
 }
 
-function getAlternatives(string: string): string[] {
-  const optionalRegex = /\((.*?)\)/g;
-  const minimalVersion = string.replaceAll(optionalRegex, '');
-  const maximalVersion = string.replaceAll(optionalRegex, '$1');
-  return minimalVersion === maximalVersion
-    ? [minimalVersion]
-    : [minimalVersion, maximalVersion];
+function segmentMatches(
+  segment: IpaSegment,
+  matcher: IpaSegmentMatcher,
+): boolean {
+  if (matcher.letter !== segment.letter) return false;
+  if (matcher.diacritics) {
+    for (const diacritic of Object.keys(matcher.diacritics) as Diacritic[]) {
+      if (segment.diacritics.has(diacritic) !== matcher.diacritics[diacritic]) {
+        return false;
+      }
+    }
+  }
+  if (matcher.left) {
+    for (const suprasegmental of Object.keys(
+      matcher.left,
+    ) as Suprasegmental[]) {
+      if (segment.left.has(suprasegmental) !== matcher.left[suprasegmental]) {
+        return false;
+      }
+    }
+  }
+  if (matcher.right) {
+    for (const suprasegmental of Object.keys(
+      matcher.right,
+    ) as Suprasegmental[]) {
+      if (segment.right.has(suprasegmental) !== matcher.right[suprasegmental]) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
