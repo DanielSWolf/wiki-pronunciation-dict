@@ -55,7 +55,7 @@ function normalizeWord<TGrapheme extends string>(
   let index = 0;
   while (index < lowerCaseWord.length) {
     const graphemeRule = languageLookup.graphemeRules.find(
-      ([expectedInputSequence, result]) => {
+      ([expectedInputSequence, _result]) => {
         const substring = lowerCaseWord.substring(
           index,
           index + expectedInputSequence.length,
@@ -155,7 +155,7 @@ function segmentsToPhonemes<TPhoneme extends string>(
   let index = 0;
   while (index < segments.length) {
     const phonemeRule = languageLookup.phonemeRules.find(
-      ([matcherSequence, result]) => {
+      ([matcherSequence, _result]) => {
         const slice = segments.slice(index, index + matcherSequence.length);
         if (slice.length < matcherSequence.length) return false;
         return zip(slice, matcherSequence).every(([segment, matcher]) =>

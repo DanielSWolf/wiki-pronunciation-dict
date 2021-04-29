@@ -4,6 +4,8 @@ import { LanguageLookup } from './language-lookup';
 export function getLanguageLookup(
   language: Language,
 ): LanguageLookup<any, any> | null {
-  // TODO: Add languages
-  return null;
+  switch (language) {
+    default:
+      return null;
+  }
 }

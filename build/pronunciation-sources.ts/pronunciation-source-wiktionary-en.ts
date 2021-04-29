@@ -3,7 +3,7 @@ import { join as joinPaths } from 'path';
 import streamProgressbar from 'stream-progressbar';
 import splitStream from 'split2';
 import { downloadsDir } from '../directories';
-import { createReadStream, existsSync, statSync } from 'fs-extra';
+import { createReadStream, statSync } from 'fs-extra';
 import { downloadFile } from '../utils/download-file';
 import { WiktionaryEdition } from '../wiktionary/wiktionary-edition';
 import { isNotNullish } from '../utils/is-not-nullish';

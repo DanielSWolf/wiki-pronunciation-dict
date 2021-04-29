@@ -120,8 +120,8 @@ function renderIssues(issues: Issue[]): ReactNode {
   const sortedIssueGroups = orderBy(
     [...issueGroupsByMessage],
     [
-      ([message, issues]) => issues[0].severity,
-      ([message, issues]) => issues.length,
+      ([_message, issues]) => issues[0].severity,
+      ([_message, issues]) => issues.length,
     ],
     ['desc', 'desc'],
   );
