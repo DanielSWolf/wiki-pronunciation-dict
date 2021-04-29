@@ -1,4 +1,4 @@
-import { IssueSeverity } from '../../issue-logging';
+import { IssueSeverity, log } from '../../issue-logging';
 import { Language } from '../../language';
 import { WordPronunciation } from '../../pronunciation-sources.ts/pronunciation-source';
 import { DictionaryCreationIssueBase } from './dictionary-creation-issue-base';
@@ -11,6 +11,7 @@ import { PhoibleData } from '../phoible';
 import inspect from 'object-inspect';
 import { zip } from 'lodash';
 import { sortMap } from '../../utils/sort-map';
+import { InvalidPhoiblePhonemeIssue } from './invalid-phoible-phoneme-issue';
 
 export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
   message = 'Missing language lookup for language.';
@@ -73,8 +74,8 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
         </tr>
         {[...graphemeDistribution].map(([grapheme, count]) => (
           <tr>
-            <td>{inspect(grapheme)}</td>
-            <td>{count.toLocaleString('en')}</td>
+            <td>{grapheme}</td>
+            <td className="text-right">{count.toLocaleString('en')}</td>
           </tr>
         ))}
       </table>
@@ -97,37 +98,36 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
     // Get the Phoible inventories for this language
     const inventories = this.phoibleData.get(this.language);
     if (inventories === undefined) {
-      throw new Error(
-        `No Phoible data found for language ${inspect(this.language)}.`,
-      );
+      return `No Phoible data found for language ${inspect(this.language)}.`;
     }
 
     // Create a lookup that maps each Phoible phoneme to a reduced version
     // consisting only of IPA letters
     const reducedPhoiblePhonemesByPhoneme = new Map<string, string>(
       inventories.flatMap(inventory =>
-        inventory.corePhonemes.flatMap<[string, string]>(phonemeString => {
-          const segmentSequencesResult = parseIpaString(phonemeString);
+        inventory.corePhonemes.flatMap(phonemeString => {
+          const segmentSequencesResult = parseIpaString(phonemeString, {
+            expectDelimiters: false,
+          });
           if (segmentSequencesResult.isErr()) {
-            throw new Error(
-              `Invalid Phoible phoneme string: ${segmentSequencesResult.error}`,
+            log(
+              new InvalidPhoiblePhonemeIssue(
+                this.language,
+                phonemeString,
+                inspect(segmentSequencesResult.error),
+              ),
             );
+            return [];
           }
 
           const segmentSequences = segmentSequencesResult.value;
-          if (segmentSequences.length !== 1) {
-            throw new Error(
-              `Invalid Phoible phoneme string: ${inspect(
+          return segmentSequences.map(
+            segmentSequence =>
+              [
                 phonemeString,
-              )}. Found ${segmentSequences.length} pronunciation alternatives.`,
-            );
-          }
-
-          const segmentSequence = segmentSequences[0];
-          return [
-            phonemeString,
-            segmentSequence.map(segment => segment.letter).join(''),
-          ];
+                segmentSequence.map(segment => segment.letter).join(''),
+              ] as const,
+          );
         }),
       ),
     );
@@ -183,8 +183,8 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
         </tr>
         {[...reducedPhonemeDistribution].map(([reducedPhoneme, count]) => (
           <tr>
-            <td>{inspect(reducedPhoneme)}</td>
-            <td>{count.toLocaleString('en')}</td>
+            <td>{reducedPhoneme}</td>
+            <td className="text-right">{count.toLocaleString('en')}</td>
             {inventories.map(inventory => (
               <td>
                 {inventory.corePhonemes
@@ -193,7 +193,6 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
                       reducedPhoiblePhonemesByPhoneme.get(phoneme) ===
                       reducedPhoneme,
                   )
-                  .map(phoneme => inspect(phoneme))
                   .join(', ')}
               </td>
             ))}
@@ -206,7 +205,7 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
 
 /** Assumes that a and b consist only of IPA letters */
 function compareByIpaLetters(a: string, b: string): number {
-  for (const [letterA, letterB] of zip(a, b)) {
+  for (const [letterA, letterB] of zip([...a], [...b])) {
     if (letterA === undefined) return -1;
     if (letterB === undefined) return 1;
 

@@ -1,10 +1,7 @@
-import { IpaParserErrorType } from '../../ipa/ipa-parser';
 import { WordPronunciation } from '../../pronunciation-sources.ts/pronunciation-source';
-import {
-  PronunciationNormalizationError,
-  PronunciationNormalizationErrorType,
-} from '../normalization';
+import { PronunciationNormalizationError } from '../normalization';
 import { DictionaryCreationIssueBase } from './dictionary-creation-issue-base';
+import { errorTypeToMessage } from './utils';
 
 export class PronunciationNormalizationIssue extends DictionaryCreationIssueBase {
   constructor(
@@ -15,18 +12,7 @@ export class PronunciationNormalizationIssue extends DictionaryCreationIssueBase
   }
 
   get message() {
-    switch (this.error.type) {
-      case IpaParserErrorType.MissingDelimiters:
-        return "Missing '[]' or '//' delimiters.";
-      case IpaParserErrorType.UnexpectedCharacter:
-        return 'Unexpected character: not a common IPA symbol.';
-      case IpaParserErrorType.IncompletePronunciation:
-        return 'Incomplete pronunciation.';
-      case IpaParserErrorType.IllegalDiacriticPosition:
-        return 'Illegal diacritic position.';
-      case PronunciationNormalizationErrorType.UnsupportedIpaSegment:
-        return 'IPA segment not supported in target language.';
-    }
+    return errorTypeToMessage(this.error.type);
   }
 
   get cells() {

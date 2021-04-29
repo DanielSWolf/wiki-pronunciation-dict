@@ -1,4 +1,4 @@
-import { IpaLetter, ipaLetters, isIpaLetter } from './ipa-letters';
+import { IpaLetter, ipaLetters } from './ipa-letters';
 import { err, ok, Result } from 'neverthrow';
 import { decomposeIpaString } from './decompose-ipa-string';
 import { createFlatMap } from '../utils/flat-map';
@@ -150,6 +150,10 @@ type IpaToken =
   | { type: 'diacritic'; value: Diacritic; location: ParserLocation }
   | { type: 'suprasegmental'; value: Suprasegmental; location: ParserLocation };
 
+interface ParseIpaStringOptions {
+  expectDelimiters?: boolean;
+}
+
 /**
  * Parses an IPA string into IPA segments.
  * @param input - An IPA pronunciation string as used on Wiktionary
@@ -158,6 +162,7 @@ type IpaToken =
  */
 export function parseIpaString(
   input: string,
+  options?: ParseIpaStringOptions,
 ): Result<IpaSegment[][], IpaParserError> {
   // Perform IPA-specific decomposition
   input = decomposeIpaString(input);
@@ -169,20 +174,22 @@ export function parseIpaString(
   if (input === '') return ok([]);
 
   // Remove surrounding /.../ and [...]
-  if (
-    (input.startsWith('/') && input.endsWith('/')) ||
-    (input.startsWith('[') && input.endsWith(']'))
-  ) {
-    input = input.substring(1, input.length - 1);
-  } else {
-    return err({
-      type: IpaParserErrorType.MissingDelimiters,
-      location: {
-        input,
-        start: 0,
-        end: input.length,
-      },
-    });
+  if (options?.expectDelimiters ?? true) {
+    if (
+      (input.startsWith('/') && input.endsWith('/')) ||
+      (input.startsWith('[') && input.endsWith(']'))
+    ) {
+      input = input.substring(1, input.length - 1);
+    } else {
+      return err({
+        type: IpaParserErrorType.MissingDelimiters,
+        location: {
+          input,
+          start: 0,
+          end: input.length,
+        },
+      });
+    }
   }
 
   // Make sure pronunciation is complete
