@@ -5,6 +5,7 @@ import { LanguageLookup } from '../languages/language-lookup';
 import { englishCollator, getCollator } from '../utils/collation';
 import { toCompactJson } from '../utils/to-compact-json';
 import { Dictionary, DictionaryData } from './create-dictionary';
+import { getName } from '@cospired/i18n-iso-languages';
 
 export function writeDictionaryFiles(dictionaries: Dictionary[]) {
   emptyDirSync(dictionariesDir);
@@ -45,7 +46,9 @@ function writeMetadataFile(
   fileName: string,
   languageLookup: LanguageLookup<any, any>,
 ) {
-  const { language, languageName } = languageLookup;
+  const { language } = languageLookup;
+
+  const languageName = getName(language, 'en');
 
   // Order graphemes using language-specific sorting rules
   const graphemes = [...languageLookup.graphemes].sort(

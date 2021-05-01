@@ -27,9 +27,6 @@ export interface LanguageLookup<
   /** The language in question */
   language: Language;
 
-  /** The English name of the language */
-  languageName: string;
-
   /** The graphemes used in the language */
   graphemes: TGrapheme[];
 
