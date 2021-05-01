@@ -5,6 +5,7 @@ export enum WiktionaryEdition {
   English = 'en',
   French = 'fr',
   German = 'de',
+  Italian = 'it',
 }
 
 export function wiktionaryEditionToString(edition: WiktionaryEdition): string {

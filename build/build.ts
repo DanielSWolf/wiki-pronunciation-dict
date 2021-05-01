@@ -7,11 +7,13 @@ import { WordPronunciation } from './pronunciation-sources.ts/pronunciation-sour
 import { createIssueLogFiles } from './issue-logging';
 import { createDictionaries } from './dictionary/create-dictionaries';
 import { pronunciationSourceWiktionaryFr } from './pronunciation-sources.ts/pronunciation-source-wiktionary-fr';
+import { pronunciationSourceWiktionaryIt } from './pronunciation-sources.ts/pronunciation-source-wiktionary-it';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
   pronunciationSourceWiktionaryDe,
   pronunciationSourceWiktionaryFr,
+  pronunciationSourceWiktionaryIt,
 ];
 
 async function main() {
