@@ -11,7 +11,6 @@ import {
   parseWiktionaryDump,
   WiktionaryPage,
 } from '../wiktionary/wiktionary-dump-parser';
-import { pageTitleIsSingleWord } from '../wiktionary/page-title-is-single-word';
 import { decodeXML } from 'entities';
 import { log } from '../issue-logging';
 import {
@@ -85,7 +84,7 @@ function removeMarkup(value: string): string {
 async function* getPronunciationsFromPage(
   page: WiktionaryPage,
 ): AsyncIterable<WordPronunciation> {
-  if (!pageTitleIsSingleWord(page.title)) return;
+  if (page.isSpecial) return;
 
   const Invalid = Symbol();
 
@@ -167,7 +166,7 @@ async function* getPronunciationsFromPage(
                 // Some articles contain empty pronunciation placeholders
                 yield {
                   sourceEdition: page.edition,
-                  language: language,
+                  language,
                   word: page.title,
                   pronunciation,
                 };

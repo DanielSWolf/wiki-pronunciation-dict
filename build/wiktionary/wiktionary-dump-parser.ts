@@ -11,6 +11,7 @@ import { AsyncIterableAdapter } from '../utils/async-iterable-adapter';
 export interface WiktionaryPage {
   edition: WiktionaryEdition;
   title: string;
+  isSpecial: boolean;
   text: string;
 }
 
@@ -45,6 +46,7 @@ export function parseWiktionaryDump(
         const page: WiktionaryPage = {
           edition,
           title: currentTitle,
+          isSpecial: isSpecialPageTitle(currentTitle),
           text: nodeText,
         };
         await result.signalValue(page);
@@ -71,4 +73,8 @@ export function parseWiktionaryDump(
   })();
 
   return result;
+}
+
+function isSpecialPageTitle(s: string) {
+  return s.includes(':');
 }
