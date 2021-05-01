@@ -57,27 +57,39 @@ export function splitIntoLines(page: WiktionaryPage): WiktionaryLine[] {
   }));
 }
 
-export function findTemplates(
+export function findTemplates<TArgumentName extends string>(
   templateName: string,
+  argumentNames: TArgumentName[],
   text: string,
-): TemplateArgs[] {
+): Array<Partial<Record<TArgumentName, string>>> {
   const regex = new RegExp(`\\{\\{${templateName}\\|(.*?)\\}\\}`, 'g');
   const matches = text.matchAll(regex);
   return [...matches].map(match => {
-    const templateArgs = match[1]
+    const template = {} as Partial<Record<TArgumentName, string>>;
+    match[1]
       .split('|')
       .map(argument => argument.trim())
-      .filter(argument => !/^\w+=/.test(argument)); // Omit named arguments
-    return templateArgs;
+      .forEach((argument, index) => {
+        const argumentParts = argument.split('=');
+        if (argumentParts.length === 1) {
+          // Positional argument
+          const key = argumentNames[index] ?? index;
+          template[key] = argument;
+        } else {
+          // Named argument
+          const [key, value] = argument;
+          template[key as TArgumentName] = value;
+        }
+      });
+    return template;
   });
 }
 
-export function findLastTemplate(
+export function findLastTemplate<TArgumentName extends string>(
   templateName: string,
+  argumentNames: TArgumentName[],
   text: string,
-): TemplateArgs | null {
-  const templates = findTemplates(templateName, text);
+): Partial<Record<TArgumentName, string>> | null {
+  const templates = findTemplates(templateName, argumentNames, text);
   return templates.length > 0 ? templates[templates.length - 1] : null;
 }
-
-export type TemplateArgs = string[];

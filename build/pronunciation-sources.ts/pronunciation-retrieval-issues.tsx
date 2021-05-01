@@ -1,6 +1,6 @@
+import inspect from 'object-inspect';
 import React from 'react';
 import { Cell, Issue, IssueSeverity } from '../issue-logging';
-import { joinNodes } from '../utils/join-nodes';
 import { WiktionaryLine } from '../wiktionary/wiktionary-page-parser';
 
 abstract class PronunciationRetrievalIssueBase implements Issue {
@@ -78,11 +78,13 @@ export class UnexpectedPronunciationLineFormatIssue extends PronunciationRetriev
   }
 }
 
-export class UnexpectedTemplateArgumentCountIssue extends PronunciationRetrievalIssueBase {
-  message = 'Unexpected template argument count.';
+export class MissingTemplateArgumentIssue<
+  TTemplate extends object
+> extends PronunciationRetrievalIssueBase {
+  message = 'Missing template argument.';
   constructor(
-    private args: string[],
-    private expectedArgumentCount: number,
+    private template: TTemplate,
+    private expectedArgumentName: keyof TTemplate,
     line: WiktionaryLine,
   ) {
     super(line);
@@ -90,13 +92,10 @@ export class UnexpectedTemplateArgumentCountIssue extends PronunciationRetrieval
   get cells() {
     return [
       ...super.cells,
-      { title: 'Expected argument count', value: this.expectedArgumentCount },
+      { title: 'Expected argument', value: this.expectedArgumentName },
       {
         title: 'Arguments',
-        value: joinNodes(
-          this.args.map(arg => <code>{arg}</code>),
-          ', ',
-        ),
+        value: <code>{inspect(this.template)}</code>,
       },
     ];
   }

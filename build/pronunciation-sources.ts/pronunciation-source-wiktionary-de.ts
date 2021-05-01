@@ -19,7 +19,7 @@ import {
   PronunciationOutsideOfPronunciationSectionIssue,
   UnexpectedLanguageLineFormatIssue,
   UnexpectedPronunciationLineFormatIssue,
-  UnexpectedTemplateArgumentCountIssue,
+  MissingTemplateArgumentIssue,
   UnsupportedLanguageNameIssue,
 } from './pronunciation-retrieval-issues';
 
@@ -154,24 +154,34 @@ async function* getPronunciationsFromPage(
             )?.[0] ?? '';
           const pronunciationTemplates = findTemplates(
             'Lautschrift',
+            ['pronunciation'],
             unqualifiedText,
           );
 
           for (const template of pronunciationTemplates) {
-            if (template.length !== 1) {
-              log(new UnexpectedTemplateArgumentCountIssue(template, 1, line));
-            } else {
-              const pronunciation = template[0];
-              if (pronunciation.length > 0) {
-                // Some articles contain empty pronunciation placeholders
-                yield {
-                  sourceEdition: page.edition,
-                  language,
-                  word: page.title,
-                  pronunciation,
-                };
-              }
+            const { pronunciation } = template;
+            if (pronunciation === undefined) {
+              log(
+                new MissingTemplateArgumentIssue(
+                  template,
+                  'pronunciation',
+                  line,
+                ),
+              );
+              continue;
             }
+
+            if (pronunciation.length === 0) {
+              // Some articles contain empty pronunciation placeholders
+              continue;
+            }
+
+            yield {
+              sourceEdition: page.edition,
+              language,
+              word: page.title,
+              pronunciation,
+            };
           }
         }
       }
