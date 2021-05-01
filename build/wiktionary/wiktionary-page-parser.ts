@@ -26,23 +26,25 @@ export function* parseWiktionaryPage(
   page: WiktionaryPage,
 ): Iterable<Heading | WiktionaryLine> {
   for (const line of splitIntoLines(page)) {
-    const isHeading = line.text.startsWith('=') && line.text.endsWith('=');
+    const trimmedText = line.text.trim();
+    const isHeading = trimmedText.startsWith('=') && trimmedText.endsWith('=');
     yield isHeading ? getHeading(line) : line;
   }
 }
 
 function getHeading(line: WiktionaryLine): Heading {
   const maxLevel = Math.floor((line.text.length - 1) / 2);
+  const trimmedText = line.text.trim();
   let level = 0;
   while (
-    line.text[level] === '=' &&
-    line.text[line.text.length - 1 - level] === '=' &&
+    trimmedText[level] === '=' &&
+    trimmedText[trimmedText.length - 1 - level] === '=' &&
     level + 1 < maxLevel
   ) {
     level++;
   }
 
-  const title = line.text.substring(level, line.text.length - level).trim();
+  const title = trimmedText.substring(level, trimmedText.length - level).trim();
 
   return { ...line, level, title };
 }
