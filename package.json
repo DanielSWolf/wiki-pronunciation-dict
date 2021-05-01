@@ -7,8 +7,8 @@
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {
-    "build": "node --max-old-space-size=8192 --require sucrase/register build/build.ts",
-    "build:prof": "node --prof --max-old-space-size=8192 --require sucrase/register build/build.ts",
+    "build": "node --max-old-space-size=16384 --require sucrase/register build/build.ts",
+    "build:prof": "node --prof --max-old-space-size=16384 --require sucrase/register build/build.ts",
     "lint": "tsc --noEmit",
     "prettify": "prettier --write .",
     "test": "jest",
