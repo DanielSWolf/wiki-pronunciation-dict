@@ -6,10 +6,12 @@ import { wiktionaryEditionToString } from './wiktionary/wiktionary-edition';
 import { WordPronunciation } from './pronunciation-sources.ts/pronunciation-source';
 import { createIssueLogFiles } from './issue-logging';
 import { createDictionaries } from './dictionary/create-dictionaries';
+import { pronunciationSourceWiktionaryFr } from './pronunciation-sources.ts/pronunciation-source-wiktionary-fr';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
   pronunciationSourceWiktionaryDe,
+  pronunciationSourceWiktionaryFr,
 ];
 
 async function main() {
