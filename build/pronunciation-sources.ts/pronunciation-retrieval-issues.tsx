@@ -19,7 +19,9 @@ abstract class PronunciationRetrievalIssueBase implements Issue {
       {
         title: 'Position',
         value: (
-          <a href={`https://de.wiktionary.org/wiki/${this.line.pageTitle}`}>
+          <a
+            href={`https://${this.line.edition}.wiktionary.org/wiki/${this.line.pageTitle}`}
+          >
             {this.line.pageTitle}, line {this.line.index + 1}
           </a>
         ),
