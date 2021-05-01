@@ -48,9 +48,6 @@ export interface IpaParserError {
 
 /** The type of a parser error */
 export enum IpaParserErrorType {
-  /** The input string is not enclosed in '[]' or '//' pairs */
-  MissingDelimiters = 'missingDelimiters',
-
   /** The input string contains a character that is not a common IPA symbol */
   UnexpectedCharacter = 'unexpectedCharacter',
 
@@ -150,10 +147,6 @@ type IpaToken =
   | { type: 'diacritic'; value: Diacritic; location: ParserLocation }
   | { type: 'suprasegmental'; value: Suprasegmental; location: ParserLocation };
 
-interface ParseIpaStringOptions {
-  expectDelimiters?: boolean;
-}
-
 /**
  * Parses an IPA string into IPA segments.
  * @param input - An IPA pronunciation string as used on Wiktionary
@@ -162,7 +155,6 @@ interface ParseIpaStringOptions {
  */
 export function parseIpaString(
   input: string,
-  options?: ParseIpaStringOptions,
 ): Result<IpaSegment[][], IpaParserError> {
   // Perform IPA-specific decomposition
   input = decomposeIpaString(input);
@@ -174,22 +166,11 @@ export function parseIpaString(
   if (input === '') return ok([]);
 
   // Remove surrounding /.../ and [...]
-  if (options?.expectDelimiters ?? true) {
-    if (
-      (input.startsWith('/') && input.endsWith('/')) ||
-      (input.startsWith('[') && input.endsWith(']'))
-    ) {
-      input = input.substring(1, input.length - 1);
-    } else {
-      return err({
-        type: IpaParserErrorType.MissingDelimiters,
-        location: {
-          input,
-          start: 0,
-          end: input.length,
-        },
-      });
-    }
+  if (
+    (input.startsWith('/') && input.endsWith('/')) ||
+    (input.startsWith('[') && input.endsWith(']'))
+  ) {
+    input = input.substring(1, input.length - 1);
   }
 
   // Make sure pronunciation is complete

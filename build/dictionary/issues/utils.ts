@@ -5,8 +5,6 @@ export function errorTypeToMessage(
   errorType: IpaParserErrorType | PronunciationNormalizationErrorType,
 ): string {
   switch (errorType) {
-    case IpaParserErrorType.MissingDelimiters:
-      return "Missing '[]' or '//' delimiters.";
     case IpaParserErrorType.UnexpectedCharacter:
       return 'Unexpected character: not a common IPA symbol.';
     case IpaParserErrorType.IncompletePronunciation:

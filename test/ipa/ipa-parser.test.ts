@@ -41,13 +41,12 @@ describe('parseIpaString', () => {
     });
   });
 
-  describe('fails if no valid delimiters are given', () => {
-    test.each(['abc', '[abc', 'abc]', '/abc', 'abc/'])('%s', input => {
-      expect(parseIpaString(input)).toEqual(
-        err({
-          type: IpaParserErrorType.MissingDelimiters,
-          location: l(input, 0, input.length),
-        }),
+  describe('supports missing delimiters', () => {
+    test('abc', () => {
+      expect(parseIpaString('abc')).toEqual(
+        ok([
+          [s('a', ['abc', 0, 1]), s('b', ['abc', 1, 2]), s('c', ['abc', 2, 3])],
+        ]),
       );
     });
   });

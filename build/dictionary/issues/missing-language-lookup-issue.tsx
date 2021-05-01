@@ -106,9 +106,7 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
     const reducedPhoiblePhonemesByPhoneme = new Map<string, string>(
       inventories.flatMap(inventory =>
         inventory.corePhonemes.flatMap(phonemeString => {
-          const segmentSequencesResult = parseIpaString(phonemeString, {
-            expectDelimiters: false,
-          });
+          const segmentSequencesResult = parseIpaString(phonemeString);
           if (segmentSequencesResult.isErr()) {
             log(
               new InvalidPhoiblePhonemeIssue(
