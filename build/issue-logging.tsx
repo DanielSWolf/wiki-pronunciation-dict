@@ -65,7 +65,7 @@ export function log(issue: Issue) {
   issuesByLogFile.getOrCreate(issue.logFileName).push(issue);
 }
 
-export async function createIssueLogFiles(): Promise<void> {
+export function createIssueLogFiles(): void {
   const issueCount = [...issuesByLogFile.values()]
     .map(list => list.length)
     .reduce((a, b) => a + b, 0);
@@ -81,14 +81,12 @@ export async function createIssueLogFiles(): Promise<void> {
   }
 
   emptyDirSync(issueLogDir);
-  await Promise.all(
-    [...issuesByLogFile].map(([logFile, issues]) =>
-      createIssueLogFile(logFile, issues),
-    ),
-  );
+  for (const [logFile, issues] of issuesByLogFile) {
+    createIssueLogFile(logFile, issues);
+  }
 }
 
-async function createIssueLogFile(logFileName: string, issues: Issue[]) {
+function createIssueLogFile(logFileName: string, issues: Issue[]) {
   const filePath = joinPaths(issueLogDir, `${logFileName}.html`);
 
   // Suppress React warnings regarding missing keys on list elements

@@ -1,4 +1,4 @@
-import { createWriteStream, emptyDirSync, writeFileSync } from 'fs-extra';
+import { emptyDirSync, writeFileSync } from 'fs-extra';
 import { join as joinPaths } from 'path';
 import { dictionariesDir } from '../directories';
 import { LanguageLookup } from '../languages/language-lookup';
@@ -24,22 +24,21 @@ export function writeDictionaryFiles(dictionaries: Dictionary[]) {
 }
 
 function writeDataFile(fileName: string, data: DictionaryData) {
-  const stream = createWriteStream(joinPaths(dictionariesDir, fileName));
-  try {
-    stream.write('{\n');
-    let index = 0;
-    for (const [word, pronunciations] of data) {
-      stream.write(
-        `  ${JSON.stringify(word)}: [${pronunciations
-          .map(p => JSON.stringify(p))
-          .join(', ')}]${index < data.size - 1 ? ',' : ''}\n`,
-      );
-      index++;
-    }
-    stream.write('}\n');
-  } finally {
-    stream.end();
+  let result = '{\n';
+
+  let index = 0;
+  for (const [word, pronunciations] of data) {
+    const wordString = JSON.stringify(word);
+    const pronunciationsString = pronunciations
+      .map(p => JSON.stringify(p))
+      .join(', ');
+    const separator = index < data.size - 1 ? ',' : '';
+    result += `  ${wordString}: [${pronunciationsString}]${separator}\n`;
+    index++;
   }
+  result += '}\n';
+
+  writeFileSync(joinPaths(dictionariesDir, fileName), result);
 }
 
 function writeMetadataFile(

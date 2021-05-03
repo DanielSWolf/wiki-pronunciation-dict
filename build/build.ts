@@ -8,6 +8,7 @@ import { createIssueLogFiles } from './issue-logging';
 import { createDictionaries } from './dictionary/create-dictionaries';
 import { pronunciationSourceWiktionaryFr } from './pronunciation-sources.ts/pronunciation-source-wiktionary-fr';
 import { pronunciationSourceWiktionaryIt } from './pronunciation-sources.ts/pronunciation-source-wiktionary-it';
+import { timeAction } from './utils/time-action';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
@@ -19,25 +20,28 @@ const pronunciationSources = [
 async function main() {
   try {
     const wordPronunciations: WordPronunciation[] = [];
-    for (const pronunciationSource of pronunciationSources) {
-      console.log(
-        `Loading pronunciations from ${wiktionaryEditionToString(
-          pronunciationSource.edition,
-        )}.`,
-      );
-      for await (const pronunciation of pronunciationSource.getPronunciations()) {
-        wordPronunciations.push(pronunciation);
+    await timeAction('loading pronunciations', async () => {
+      for (const pronunciationSource of pronunciationSources) {
+        console.log(
+          `Loading pronunciations from ${wiktionaryEditionToString(
+            pronunciationSource.edition,
+          )}.`,
+        );
+        for await (const pronunciation of pronunciationSource.getPronunciations()) {
+          wordPronunciations.push(pronunciation);
+        }
       }
-    }
+    });
 
-    console.log('Creating dictionaries.');
-    const dictionaries = await createDictionaries(wordPronunciations);
+    const dictionaries = await timeAction('creating dictionaries', () =>
+      createDictionaries(wordPronunciations),
+    );
 
-    console.log('Writing dictionary files.');
-    writeDictionaryFiles(dictionaries);
+    timeAction('writing dictionary files', () =>
+      writeDictionaryFiles(dictionaries),
+    );
 
-    console.log('Creating issue log files.');
-    await createIssueLogFiles();
+    timeAction('creating issue log files', () => createIssueLogFiles());
   } catch (error) {
     console.error(error, error.stack);
     process.exit(1);
