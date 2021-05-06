@@ -159,19 +159,21 @@ export function parseIpaString(
   // Perform IPA-specific decomposition
   input = decomposeIpaString(input);
 
-  // Trim surrounding whitespace
-  input = input.trim();
+  // Remove surrounding /.../ and [...] as well as whitespace.
+  // Be lenient about matching pairs.
+  while (
+    input.startsWith('/') ||
+    input.startsWith('[') ||
+    input.startsWith(' ')
+  ) {
+    input = input.substring(1);
+  }
+  while (input.endsWith('/') || input.endsWith(']') || input.endsWith(' ')) {
+    input = input.substring(0, input.length - 1);
+  }
 
   // Make sure there is a pronunciation
   if (input === '') return ok([]);
-
-  // Remove surrounding /.../ and [...]
-  if (
-    (input.startsWith('/') && input.endsWith('/')) ||
-    (input.startsWith('[') && input.endsWith(']'))
-  ) {
-    input = input.substring(1, input.length - 1);
-  }
 
   // Make sure pronunciation is complete
   if (input.startsWith('-')) {
