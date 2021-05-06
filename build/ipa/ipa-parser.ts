@@ -175,7 +175,7 @@ export function parseIpaString(
   }
 
   // Make sure there is a pronunciation
-  if (input === '') return ok([]);
+  if (input === '' || input === '…') return ok([]);
 
   // Make sure pronunciation is complete
   if (input.startsWith('-')) {
@@ -353,6 +353,11 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
     [{ type: 'letter', value: letter }],
   ]),
 
+  // Map Latin small letter turned e (U+01DD) to Latin small letter schwa (U+0259)
+  [['ǝ'], [{ type: 'letter', value: 'ə' }]],
+  // Map Latin small letter g (U+0067) to Latin small letter script g (U+0261)
+  [['g'], [{ type: 'letter', value: 'ɡ' }]],
+
   //////////////////////////////////////////////////////////////////////////////
   // IPA diacritics
 
@@ -366,7 +371,7 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
   [['\u0308'], [{ type: 'diacritic', value: 'centralized' }]],
   [['\u033D', '˟'], [{ type: 'diacritic', value: 'midCentralized' }]],
   [['\u0329', '\u030D'], [{ type: 'diacritic', value: 'syllabic' }]],
-  [['\u032F'], [{ type: 'diacritic', value: 'nonSyllabic' }]],
+  [['\u032F', '\u0311'], [{ type: 'diacritic', value: 'nonSyllabic' }]],
   [['\u02DE'], [{ type: 'diacritic', value: 'rhoticity' }]],
   [['\u0324', 'ʱ'], [{ type: 'diacritic', value: 'breathyVoiced' }]],
   [['\u0330', '˷'], [{ type: 'diacritic', value: 'creakyVoiced' }]],
@@ -395,9 +400,9 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
   //////////////////////////////////////////////////////////////////////////////
   // Suprasegmentals
 
-  [['ˈ', "'"], [{ type: 'suprasegmental', value: 'primaryStress' }]],
-  [['ˌ'], [{ type: 'suprasegmental', value: 'secondaryStress' }]],
-  [['ː'], [{ type: 'suprasegmental', value: 'long' }]],
+  [['ˈ', "'", '’'], [{ type: 'suprasegmental', value: 'primaryStress' }]],
+  [['ˌ', ','], [{ type: 'suprasegmental', value: 'secondaryStress' }]],
+  [['ː', ':'], [{ type: 'suprasegmental', value: 'long' }]],
   [['ˑ'], [{ type: 'suprasegmental', value: 'halfLong' }]],
   [['\u0306'], [{ type: 'suprasegmental', value: 'extraShort' }]],
   [['|'], [{ type: 'suprasegmental', value: 'minorGroup' }]],
@@ -424,6 +429,32 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
 
   // Non-standard suprasegmentals
   [['ˣ'], [{ type: 'suprasegmental', value: 'gemination' }]],
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Ligatures
+
+  ...([
+    ['ʣ', 'd', 'z'],
+    ['ʤ', 'd', 'ʒ'],
+    ['ʥ', 'd', 'ʑ'],
+    ['ʦ', 't', 's'],
+    ['ʧ', 't', 'ʃ'],
+    ['ʨ', 't', 'ɕ'],
+  ] as const).map<[string[], LocationlessIpaToken[]]>(
+    ([ligature, firstLetter, secondLetter]) => [
+      [ligature],
+      [
+        { type: 'letter', value: firstLetter },
+        { type: 'suprasegmental', value: 'linking' },
+        { type: 'letter', value: secondLetter },
+      ],
+    ],
+  ),
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Misc.
+
+  [['\u200C'], []], // Zero width non-joiner
 ]);
 
 const maxTokenMapKeyLength = Math.max(
