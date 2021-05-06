@@ -142,10 +142,12 @@ const suprasegmentals = [
 export type Suprasegmental = typeof suprasegmentals[number];
 
 /** An IPA letter, diacritic, or suprasegmental, as found when lexing an IPA string */
-type IpaToken =
-  | { type: 'letter'; value: IpaLetter; location: ParserLocation }
-  | { type: 'diacritic'; value: Diacritic; location: ParserLocation }
-  | { type: 'suprasegmental'; value: Suprasegmental; location: ParserLocation };
+type IpaToken = LocationlessIpaToken & { location: ParserLocation };
+
+type LocationlessIpaToken =
+  | { type: 'letter'; value: IpaLetter }
+  | { type: 'diacritic'; value: Diacritic }
+  | { type: 'suprasegmental'; value: Suprasegmental };
 
 /**
  * Parses an IPA string into IPA segments.
@@ -268,91 +270,6 @@ function tokensToSegments(
   return ok(segments);
 }
 
-/** All IPA letters by their string representation. (This one is trivial) */
-const letterMap = new Map<string, IpaLetter>(
-  ipaLetters.map(letter => [letter, letter]),
-);
-
-/** All IPA diacritics by their string representation(s). */
-const diacriticMap = createFlatMap<string, Diacritic>([
-  [['\u0325', '\u030A', '˳'], 'voiceless'],
-  [['\u032C', 'ˬ'], 'voiced'],
-  [['ʰ'], 'aspirated'],
-  [['\u0339'], 'moreRounded'],
-  [['\u031C'], 'lessRounded'],
-  [['\u031F', '˖'], 'advanced'],
-  [['\u0320', 'ˍ'], 'retracted'],
-  [['\u0308'], 'centralized'],
-  [['\u033D', '˟'], 'midCentralized'],
-  [['\u0329', '\u030D'], 'syllabic'],
-  [['\u032F'], 'nonSyllabic'],
-  [['\u02DE'], 'rhoticity'],
-  [['\u0324', 'ʱ'], 'breathyVoiced'],
-  [['\u0330', '˷'], 'creakyVoiced'],
-  [['\u033C'], 'linguolabial'],
-  [['ʷ'], 'labialized'],
-  [['ʲ'], 'palatalized'],
-  [['ˠ'], 'velarized'],
-  [['ˤ'], 'pharyngealized'],
-  [['\u0334'], 'velarizedOrPharyngealized'],
-  [['\u031D', '˔'], 'raised'],
-  [['\u031E', '˕'], 'lowered'],
-  [['\u0318'], 'advancedTongueRoot'],
-  [['\u0319'], 'retractedTongueRoot'],
-  [['\u032A'], 'dental'],
-  [['\u033A', '˽'], 'apical'],
-  [['\u033B'], 'laminal'],
-  [['\u0303'], 'nasalized'],
-  [['ⁿ'], 'nasalRelease'],
-  [['ˡ'], 'lateralRelease'],
-  [['\u031A', '˺'], 'noAudibleRelease'],
-
-  // Non-standard diacritics
-  [['ˀ'], 'glottalized'],
-  [['ᵊ'], 'midCentralVowelRelease'],
-]);
-
-/** All IPA suprasegmentals by their string representation(s). */
-const suprasegmentalMap = createFlatMap<string, Suprasegmental>([
-  [['ˈ', "'"], 'primaryStress'],
-  [['ˌ'], 'secondaryStress'],
-  [['ː'], 'long'],
-  [['ˑ'], 'halfLong'],
-  [['\u0306'], 'extraShort'],
-  [['|'], 'minorGroup'],
-  [['‖'], 'majorGroup'],
-  [['.'], 'syllableBreak'],
-  [['\u035C', '\u0361', '‿'], 'linking'],
-
-  // The iconic pitch variation marks are a stub. There are many more possible combinations.
-  // Should we actually need them one day, we'd have to extend this section.
-  [['\u030B', '˥'], 'extraHigh'],
-  [['\u0301', '˦'], 'high'],
-  [['\u0304', '˧'], 'mid'],
-  [['\u0300', '˨'], 'low'],
-  [['\u030F', '˩'], 'extraLow'],
-  [['ꜜ'], 'downstep'],
-  [['ꜛ'], 'upstep'],
-  [['\u030C', '˩˥'], 'rising'],
-  [['\u0302', '˥˩'], 'falling'],
-  [['\u1DC4', '˧˥'], 'highRising'],
-  [['\u1DC5', '˩˧'], 'lowRising'],
-  [['\u1DC8', '˧˦˨'], 'risingFalling'],
-  [['↗'], 'globalRise'],
-  [['↘'], 'globalFall'],
-
-  // Non-standard suprasegmentals
-  [['ˣ'], 'gemination'],
-]);
-
-const maxMapKeyLength = Math.max(
-  ...[
-    ...letterMap.keys(),
-    ...diacriticMap.keys(),
-    ...suprasegmentalMap.keys(),
-  ].map(key => key.length),
-);
-
 /**
  * Takes a "simple" IPA string and converts it into structured tokens.
  *
@@ -367,46 +284,31 @@ function lexSimpleIpaString(input: string): Result<IpaToken[], IpaParserError> {
   while (index < input.length) {
     // Try to find the token with the longest input length
     let match: {
-      token: IpaToken | null;
+      tokens: IpaToken[];
       substringLength: number;
     } | null = null;
     for (
-      let substringLength = Math.min(maxMapKeyLength, input.length - index);
+      let substringLength = Math.min(
+        maxTokenMapKeyLength,
+        input.length - index,
+      );
       match === null && substringLength > 0;
       substringLength--
     ) {
       const end = index + substringLength;
       const substring = input.substring(index, end);
       const location = { input, start: index, end };
-      if (letterMap.has(substring)) {
+      const locationlessTokens = tokenMap.get(substring);
+      if (locationlessTokens) {
         match = {
-          token: {
-            type: 'letter',
-            value: letterMap.get(substring)!,
+          tokens: locationlessTokens.map(locationlessToken => ({
+            ...locationlessToken,
             location,
-          },
-          substringLength,
-        };
-      } else if (diacriticMap.has(substring)) {
-        match = {
-          token: {
-            type: 'diacritic',
-            value: diacriticMap.get(substring)!,
-            location,
-          },
-          substringLength,
-        };
-      } else if (suprasegmentalMap.has(substring)) {
-        match = {
-          token: {
-            type: 'suprasegmental',
-            value: suprasegmentalMap.get(substring)!,
-            location,
-          },
+          })),
           substringLength,
         };
       } else if (isWhitespace(substring)) {
-        match = { token: null, substringLength };
+        match = { tokens: [], substringLength };
       }
     }
 
@@ -417,9 +319,7 @@ function lexSimpleIpaString(input: string): Result<IpaToken[], IpaParserError> {
       });
     }
 
-    if (match.token !== null) {
-      result.push(match.token);
-    }
+    result.push(...match.tokens);
     index += match.substringLength;
   }
 
@@ -442,3 +342,90 @@ function getAlternatives(string: string): string[] {
     ? [minimalVersion]
     : [minimalVersion, maximalVersion];
 }
+
+/** Map from string representations to a sequence of tokens */
+const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
+  //////////////////////////////////////////////////////////////////////////////
+  // IPA letters
+
+  ...ipaLetters.map<[string[], LocationlessIpaToken[]]>(letter => [
+    [letter],
+    [{ type: 'letter', value: letter }],
+  ]),
+
+  //////////////////////////////////////////////////////////////////////////////
+  // IPA diacritics
+
+  [['\u0325', '\u030A', '˳'], [{ type: 'diacritic', value: 'voiceless' }]],
+  [['\u032C', 'ˬ'], [{ type: 'diacritic', value: 'voiced' }]],
+  [['ʰ'], [{ type: 'diacritic', value: 'aspirated' }]],
+  [['\u0339'], [{ type: 'diacritic', value: 'moreRounded' }]],
+  [['\u031C'], [{ type: 'diacritic', value: 'lessRounded' }]],
+  [['\u031F', '˖'], [{ type: 'diacritic', value: 'advanced' }]],
+  [['\u0320', 'ˍ'], [{ type: 'diacritic', value: 'retracted' }]],
+  [['\u0308'], [{ type: 'diacritic', value: 'centralized' }]],
+  [['\u033D', '˟'], [{ type: 'diacritic', value: 'midCentralized' }]],
+  [['\u0329', '\u030D'], [{ type: 'diacritic', value: 'syllabic' }]],
+  [['\u032F'], [{ type: 'diacritic', value: 'nonSyllabic' }]],
+  [['\u02DE'], [{ type: 'diacritic', value: 'rhoticity' }]],
+  [['\u0324', 'ʱ'], [{ type: 'diacritic', value: 'breathyVoiced' }]],
+  [['\u0330', '˷'], [{ type: 'diacritic', value: 'creakyVoiced' }]],
+  [['\u033C'], [{ type: 'diacritic', value: 'linguolabial' }]],
+  [['ʷ'], [{ type: 'diacritic', value: 'labialized' }]],
+  [['ʲ'], [{ type: 'diacritic', value: 'palatalized' }]],
+  [['ˠ'], [{ type: 'diacritic', value: 'velarized' }]],
+  [['ˤ'], [{ type: 'diacritic', value: 'pharyngealized' }]],
+  [['\u0334'], [{ type: 'diacritic', value: 'velarizedOrPharyngealized' }]],
+  [['\u031D', '˔'], [{ type: 'diacritic', value: 'raised' }]],
+  [['\u031E', '˕'], [{ type: 'diacritic', value: 'lowered' }]],
+  [['\u0318'], [{ type: 'diacritic', value: 'advancedTongueRoot' }]],
+  [['\u0319'], [{ type: 'diacritic', value: 'retractedTongueRoot' }]],
+  [['\u032A'], [{ type: 'diacritic', value: 'dental' }]],
+  [['\u033A', '˽'], [{ type: 'diacritic', value: 'apical' }]],
+  [['\u033B'], [{ type: 'diacritic', value: 'laminal' }]],
+  [['\u0303'], [{ type: 'diacritic', value: 'nasalized' }]],
+  [['ⁿ'], [{ type: 'diacritic', value: 'nasalRelease' }]],
+  [['ˡ'], [{ type: 'diacritic', value: 'lateralRelease' }]],
+  [['\u031A', '˺'], [{ type: 'diacritic', value: 'noAudibleRelease' }]],
+
+  // Non-standard diacritics
+  [['ˀ'], [{ type: 'diacritic', value: 'glottalized' }]],
+  [['ᵊ'], [{ type: 'diacritic', value: 'midCentralVowelRelease' }]],
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Suprasegmentals
+
+  [['ˈ', "'"], [{ type: 'suprasegmental', value: 'primaryStress' }]],
+  [['ˌ'], [{ type: 'suprasegmental', value: 'secondaryStress' }]],
+  [['ː'], [{ type: 'suprasegmental', value: 'long' }]],
+  [['ˑ'], [{ type: 'suprasegmental', value: 'halfLong' }]],
+  [['\u0306'], [{ type: 'suprasegmental', value: 'extraShort' }]],
+  [['|'], [{ type: 'suprasegmental', value: 'minorGroup' }]],
+  [['‖'], [{ type: 'suprasegmental', value: 'majorGroup' }]],
+  [['.'], [{ type: 'suprasegmental', value: 'syllableBreak' }]],
+  [['\u035C', '\u0361', '‿'], [{ type: 'suprasegmental', value: 'linking' }]],
+
+  // The iconic pitch variation marks are a stub. There are many more possible combinations.
+  // Should we actually need them one day, we'd have to extend this section.
+  [['\u030B', '˥'], [{ type: 'suprasegmental', value: 'extraHigh' }]],
+  [['\u0301', '˦'], [{ type: 'suprasegmental', value: 'high' }]],
+  [['\u0304', '˧'], [{ type: 'suprasegmental', value: 'mid' }]],
+  [['\u0300', '˨'], [{ type: 'suprasegmental', value: 'low' }]],
+  [['\u030F', '˩'], [{ type: 'suprasegmental', value: 'extraLow' }]],
+  [['ꜜ'], [{ type: 'suprasegmental', value: 'downstep' }]],
+  [['ꜛ'], [{ type: 'suprasegmental', value: 'upstep' }]],
+  [['\u030C', '˩˥'], [{ type: 'suprasegmental', value: 'rising' }]],
+  [['\u0302', '˥˩'], [{ type: 'suprasegmental', value: 'falling' }]],
+  [['\u1DC4', '˧˥'], [{ type: 'suprasegmental', value: 'highRising' }]],
+  [['\u1DC5', '˩˧'], [{ type: 'suprasegmental', value: 'lowRising' }]],
+  [['\u1DC8', '˧˦˨'], [{ type: 'suprasegmental', value: 'risingFalling' }]],
+  [['↗'], [{ type: 'suprasegmental', value: 'globalRise' }]],
+  [['↘'], [{ type: 'suprasegmental', value: 'globalFall' }]],
+
+  // Non-standard suprasegmentals
+  [['ˣ'], [{ type: 'suprasegmental', value: 'gemination' }]],
+]);
+
+const maxTokenMapKeyLength = Math.max(
+  ...[...tokenMap.keys()].map(key => key.length),
+);
