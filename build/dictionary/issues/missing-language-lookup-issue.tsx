@@ -13,6 +13,8 @@ import { zip } from 'lodash';
 import { sortMap } from '../../utils/sort-map';
 import { InvalidPhoiblePhonemeIssue } from './invalid-phoible-phoneme-issue';
 
+const desiredLanguages: Language[] = [];
+
 export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
   message = 'Missing language lookup for language.';
   severity = IssueSeverity.High;
@@ -33,10 +35,18 @@ export class MissingLanguageLookupIssue extends DictionaryCreationIssueBase {
           <>
             <p>
               There is no language lookup for this language. Create a language
-              lookup for this language based on the following statistics.
+              lookup for this language.
             </p>
-            {this.renderGraphemeStatistics()}
-            {this.renderPhonemeStatistics()}
+            {desiredLanguages.includes(this.language) ? (
+              <>
+                {this.renderGraphemeStatistics()}
+                {this.renderPhonemeStatistics()}
+              </>
+            ) : (
+              `Statistics omitted for performance reasons. Add ${inspect(
+                this.language,
+              )} to the desiredLanguages constant to generate it.`
+            )}
           </>
         ),
       },

@@ -7,7 +7,7 @@ import { nodeSupportsLanguage } from '../utils/i18n';
 import { log } from '../issue-logging';
 import { LanguageNotSupportedByNodeIssue } from './issues/language-not-supported-by-node-issue';
 
-const minWordCountPerDictionary = 10000;
+const minWordCountPerDictionary = 50000;
 
 export async function createDictionaries(
   wordPronunciations: WordPronunciation[],
@@ -20,10 +20,11 @@ export async function createDictionaries(
   const filteredWordPronunciationsByLanguage = [
     ...wordPronunciationsByLanguage,
   ].filter(([language, wordPronunciations]) => {
-    const distinctWords = new Set(
-      wordPronunciations.map(wordPronunciation => wordPronunciation.word),
-    );
     // Omit languages with too few words
+    const distinctWords = new Set<string>();
+    for (const wordPronunciation of wordPronunciations) {
+      distinctWords.add(wordPronunciation.word);
+    }
     if (distinctWords.size < minWordCountPerDictionary) return false;
 
     // Omit languages with unsupported language code

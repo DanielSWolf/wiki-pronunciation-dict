@@ -154,13 +154,20 @@ function segmentsToPhonemes<TPhoneme extends string>(
   const phonemes: TPhoneme[] = [];
   let index = 0;
   while (index < segments.length) {
+    // Find matching phoneme rule
     const phonemeRule = languageLookup.phonemeRules.find(
       ([matcherSequence, _result]) => {
-        const slice = segments.slice(index, index + matcherSequence.length);
-        if (slice.length < matcherSequence.length) return false;
-        return zip(slice, matcherSequence).every(([segment, matcher]) =>
-          segmentMatches(segment!, matcher!),
-        );
+        if (segments.length < index + matcherSequence.length) return false;
+
+        for (let offset = 0; offset < matcherSequence.length; offset++) {
+          if (
+            !segmentMatches(segments[index + offset], matcherSequence[offset])
+          ) {
+            return false;
+          }
+        }
+
+        return true;
       },
     );
     if (phonemeRule === undefined) {
