@@ -9,13 +9,16 @@ import { createDictionaries } from './dictionary/create-dictionaries';
 import { pronunciationSourceWiktionaryFr } from './pronunciation-sources.ts/pronunciation-source-wiktionary-fr';
 import { pronunciationSourceWiktionaryIt } from './pronunciation-sources.ts/pronunciation-source-wiktionary-it';
 import { timeAction } from './utils/time-action';
+import { CachingPronunciationSource } from './pronunciation-sources.ts/caching-pronunciation-source';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
   pronunciationSourceWiktionaryDe,
   pronunciationSourceWiktionaryFr,
   pronunciationSourceWiktionaryIt,
-];
+].map(
+  pronunciationSource => new CachingPronunciationSource(pronunciationSource),
+);
 
 async function main() {
   try {
