@@ -3,4 +3,5 @@ node_modules/
 /downloads/
 /dictionaries/
 /issue-logs/
+/outlyers/
 yarn.lock
