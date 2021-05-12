@@ -10,15 +10,21 @@ import { pronunciationSourceWiktionaryFr } from './pronunciation-sources.ts/pron
 import { pronunciationSourceWiktionaryIt } from './pronunciation-sources.ts/pronunciation-source-wiktionary-it';
 import { timeAction } from './utils/time-action';
 import { CachingPronunciationSource } from './pronunciation-sources.ts/caching-pronunciation-source';
+import { BlocklistingPronunciationSource } from './pronunciation-sources.ts/blocklisting-pronunciation-source';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
   pronunciationSourceWiktionaryDe,
   pronunciationSourceWiktionaryFr,
   pronunciationSourceWiktionaryIt,
-].map(
-  pronunciationSource => new CachingPronunciationSource(pronunciationSource),
-);
+]
+  .map(
+    pronunciationSource => new CachingPronunciationSource(pronunciationSource),
+  )
+  .map(
+    pronunciationSource =>
+      new BlocklistingPronunciationSource(pronunciationSource),
+  );
 
 async function main() {
   try {
