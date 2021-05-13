@@ -128,12 +128,17 @@ function normalizePronunciation<TPhoneme extends string>(
 ): string[] {
   const segmentsResult = parseIpaString(wordPronunciation.pronunciation);
   if (segmentsResult.isErr()) {
-    log(
-      new PronunciationNormalizationIssue(
-        wordPronunciation,
-        segmentsResult.error,
-      ),
-    );
+    if (
+      segmentsResult.error.type !== IpaParserErrorType.IncompletePronunciation
+    ) {
+      // Incomplete pronunciations are irrelevant for logging
+      log(
+        new PronunciationNormalizationIssue(
+          wordPronunciation,
+          segmentsResult.error,
+        ),
+      );
+    }
     return [];
   }
 
