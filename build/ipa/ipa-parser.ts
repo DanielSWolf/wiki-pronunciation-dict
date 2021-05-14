@@ -372,7 +372,7 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
   [['\u033D', '˟'], [{ type: 'diacritic', value: 'midCentralized' }]],
   [['\u0329', '\u030D'], [{ type: 'diacritic', value: 'syllabic' }]],
   [['\u032F', '\u0311'], [{ type: 'diacritic', value: 'nonSyllabic' }]],
-  [['\u02DE'], [{ type: 'diacritic', value: 'rhoticity' }]],
+  [['\u02DE', 'ʳ'], [{ type: 'diacritic', value: 'rhoticity' }]],
   [['\u0324', 'ʱ'], [{ type: 'diacritic', value: 'breathyVoiced' }]],
   [['\u0330', '˷'], [{ type: 'diacritic', value: 'creakyVoiced' }]],
   [['\u033C'], [{ type: 'diacritic', value: 'linguolabial' }]],
