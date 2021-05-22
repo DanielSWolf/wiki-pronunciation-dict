@@ -1,4 +1,3 @@
-import { zip } from 'lodash';
 import { IpaLetter } from '../ipa/ipa-letters';
 import {
   Diacritic,
@@ -86,7 +85,7 @@ function normalizeWord<TGrapheme extends string>(
     index += graphemeRule[0].length;
   }
 
-  return graphemes.join('');
+  return graphemes.length > 0 ? graphemes.join('') : null;
 }
 
 /** Compatible with IpaParserError */
@@ -147,7 +146,7 @@ function normalizePronunciation<TPhoneme extends string>(
     .map(segments =>
       segmentsToPhonemes(segments, wordPronunciation, languageLookup),
     )
-    .filter(Boolean)
+    .filter(phonemes => phonemes?.length ?? 0 > 0)
     .map(phonemes => phonemes!.join(' '));
 }
 
