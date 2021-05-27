@@ -10,8 +10,8 @@ import {
 const italianGraphemes = [
   '’',
   'a', 'à', 'b', 'c', 'd', 'e', 'é', 'è', 'f', 'g', 'h', 'i', 'ì', 'j', 'k',
-  'l', 'm', 'n', 'o', 'ò', 'p', 'q', 'r', 's', 't', 'u', 'ù', 'v', 'w', 'x',
-  'y', 'z',
+  'l', 'm', 'n', 'o', 'ö', 'ò', 'p', 'q', 'r', 's', 't', 'u', 'ù', 'v', 'w',
+  'x', 'y', 'z',
 ] as const;
 
 type ItalianGrapheme = typeof italianGraphemes[number];
@@ -47,6 +47,7 @@ export const languageLookupIt: LanguageLookup<
 
     // Use typographic apostrophes
     ["'", ['’']],
+    ['‘', ['’']],
 
     // Map each grapheme onto itself
     ...italianGraphemes.map<GraphemeRule<ItalianGrapheme>>(grapheme => [
@@ -100,7 +101,7 @@ export const languageLookupIt: LanguageLookup<
     [[{ letter: 'ʊ' }], ['u']],
     [[{ letter: 'ø' }], ['e']],
 
-    // Map each phoneme onto itself
+    // Map each single-letter phoneme onto itself
     ...italianPhonemes
       .filter((phoneme): phoneme is ItalianPhoneme & IpaLetter =>
         isIpaLetter(phoneme),
