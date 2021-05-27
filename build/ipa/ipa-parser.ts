@@ -353,10 +353,15 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
     [{ type: 'letter', value: letter }],
   ]),
 
-  // Map Latin small letter turned e (U+01DD) to Latin small letter schwa (U+0259)
+  // Map similar-looking letters
+  // Latin small letter turned e (U+01DD) => Latin small letter schwa (U+0259)
   [['ǝ'], [{ type: 'letter', value: 'ə' }]],
-  // Map Latin small letter g (U+0067) to Latin small letter script g (U+0261)
+  // Latin small letter g (U+0067) => Latin small letter script g (U+0261)
   [['g'], [{ type: 'letter', value: 'ɡ' }]],
+  // Latin capital letter R (U+0052) => Latin letter small capital R (U+0280)
+  [['R'], [{ type: 'letter', value: 'ʀ' }]],
+  // Greek small letter epsilon (U+03B5) => Latin small letter open e (U+025B)
+  [['ε'], [{ type: 'letter', value: 'ɛ' }]],
 
   //////////////////////////////////////////////////////////////////////////////
   // IPA diacritics
@@ -388,7 +393,7 @@ const tokenMap = createFlatMap<string, LocationlessIpaToken[]>([
   [['\u032A'], [{ type: 'diacritic', value: 'dental' }]],
   [['\u033A', '˽'], [{ type: 'diacritic', value: 'apical' }]],
   [['\u033B'], [{ type: 'diacritic', value: 'laminal' }]],
-  [['\u0303'], [{ type: 'diacritic', value: 'nasalized' }]],
+  [['\u0303', '\u0342'], [{ type: 'diacritic', value: 'nasalized' }]],
   [['ⁿ'], [{ type: 'diacritic', value: 'nasalRelease' }]],
   [['ˡ'], [{ type: 'diacritic', value: 'lateralRelease' }]],
   [['\u031A', '˺'], [{ type: 'diacritic', value: 'noAudibleRelease' }]],
