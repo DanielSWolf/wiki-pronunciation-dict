@@ -1,7 +1,7 @@
 node_modules/
 /cache/
 /downloads/
-/dictionaries/
+/dictionaries/*-raw.json
 /issue-logs/
 /outlyers/
 yarn.lock
