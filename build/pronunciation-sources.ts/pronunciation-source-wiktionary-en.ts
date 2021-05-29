@@ -17,11 +17,11 @@ import { isNotNullish } from '../utils/is-not-nullish';
 
 async function getWiktextractFilePath(): Promise<string> {
   const url =
-    'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.bz2';
+    'https://kaikki.org/dictionary/All%20languages%20combined/kaikki.org-dictionary-all.json.gz';
   const filePath = joinPaths(downloadsDir, 'wiktextract-all.json');
   await downloadFile(url, filePath, {
     description: 'Wiktextract data file',
-    decompressBzip2: true,
+    decompressGzip: true,
     skipIfExists: true,
   });
 
