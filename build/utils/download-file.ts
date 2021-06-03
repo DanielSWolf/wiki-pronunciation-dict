@@ -1,12 +1,18 @@
-import download from 'download';
 import streamProgressbar from 'stream-progressbar';
 import { createWriteStream, ensureDir, existsSync, move } from 'fs-extra';
 import { dirname, basename } from 'path';
 import unbzip2Stream from 'unbzip2-stream';
+import { promisify } from 'util';
+import stream from 'stream';
+import got from 'got';
+import zlib from 'zlib';
+
+const pipeline = promisify(stream.pipeline);
 
 interface FileDownloadOptions {
   description?: string;
   decompressBzip2?: boolean;
+  decompressGzip?: boolean;
   skipIfExists?: boolean;
 }
 
@@ -32,15 +38,12 @@ export async function downloadFile(
   console.log(`Downloading ${description}.`);
 
   const tempPath = `${targetPath}~`;
-  let stream: NodeJS.ReadWriteStream = download(url).pipe(
+  await pipeline(
+    got.stream(url),
     streamProgressbar(':bar :percent downloaded (:etas remaining)'),
-  );
-  if (options?.decompressBzip2) {
-    stream = stream.pipe(unbzip2Stream());
-  }
-  stream.pipe(createWriteStream(tempPath));
-  await new Promise((resolve, reject) =>
-    stream.on('close', resolve).on('error', reject),
+    ...(options?.decompressBzip2 ? [unbzip2Stream()] : []),
+    ...(options?.decompressGzip ? [zlib.createGunzip()] : []),
+    createWriteStream(tempPath),
   );
 
   await move(tempPath, targetPath);
