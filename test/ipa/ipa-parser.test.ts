@@ -68,8 +68,8 @@ describe('parseIpaString', () => {
   });
 
   it('ignores whitespace throughout', () => {
-    expect(parseIpaString(' \t[\r\na b ] ')).toEqual(
-      ok([[s('a', ['\r\na b ', 2, 3]), s('b', ['\r\na b ', 4, 5])]]),
+    expect(parseIpaString('  [  a b ] ')).toEqual(
+      ok([[s('a', ['a b', 0, 1]), s('b', ['a b', 2, 3])]]),
     );
   });
 
