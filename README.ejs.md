@@ -1,13 +1,49 @@
 # WikiPronunciationDict
 
+<%
+function andList(items) {
+  return items.length < 3
+    ? items.join(' and ')
+    : items.slice(0, items.length - 1).join(', ') +
+        ', and ' +
+        items[items.length - 1];
+}
 
-WikiPronunciationDict is a multilingual pronunciation dictionary for English, French, German, and Italian, based on data from Wiktionary, the free dictionary. A pronunciation dictionary (also called *pronouncing dictionary* or *phonetic dictionary*) contains a list of vocabulary words along with their pronunciations.
+const languageNames = dictionaries.map((dictionary) =>
+  getLanguageName(dictionary.languageLookup.language)
+);
+_%>
+
+WikiPronunciationDict is a multilingual pronunciation dictionary for <%- andList(languageNames) %>, based on data from Wiktionary, the free dictionary. A pronunciation dictionary (also called *pronouncing dictionary* or *phonetic dictionary*) contains a list of vocabulary words along with their pronunciations.
 
 WikiPronunciationDict is free, machine-readable, and can be used in speech processing tasks such as automated speech recognition (ASR).
 
 The following chart shows the current number of dictionary words for each supported language.
 
-![Dictionary sizes in words](https://quickchart.io/chart?c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27English%27%2C%27French%27%2C%27German%27%2C%27Italian%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B69588%2C1362197%2C636901%2C91307%5D%7D%5D%7D%2Coptions%3A%7Blegend%3A%7Bdisplay%3Afalse%7D%2Ctitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27Dictionary+sizes+in+words%27%7D%2Cplugins%3A%7Bdatalabels%3A%7Bcolor%3A%27white%27%7D%7D%7D%7D&w=500&h=300&bkg=%23ffffff&f=svg)
+![Dictionary sizes in words](<%-
+new QuickChart()
+  .setConfig({
+    type: 'bar',
+    data: {
+      labels: languageNames,
+      datasets: [{
+        data: dictionaries.map(dictionary => dictionary.data.size),
+      }],
+    },
+    options: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Dictionary sizes in words',
+      },
+      plugins: {
+        datalabels: { color: 'white' },
+      },
+    },
+  })
+  .setFormat('svg')
+  .getUrl();
+%>)
 
 ## Where to get the dictionary files
 
@@ -52,22 +88,20 @@ The following is an extract from the German data file:
 
 *de.json*
 ```yaml
-{
-  "’n": ["ə n", "n"],
-  "’naus": ["n a ʊ s"],
-  "’ndrangheta": ["n d ʀ a ŋ ɡ e t a"],
-  "’ne": ["n ə"],
-  ...
-  "honig": ["h o n ɪ ç", "h o n ɪ k"],
-  "honigbär": ["h o n ɪ ç b e ɐ", "h o n ɪ ç b ɛ ɐ", "h o n ɪ k b ɛ ɐ"],
-  "honigbiene": ["h o n ɪ ç b i n ə", "h o n ɪ k b i n ə"],
-  "honigbienen": ["h o n ɪ ç b i n ə n"],
-  ...
-  "zytotropes": ["t s y t o t ʀ o p ə s"],
-  "zytozentren": ["t s y t o t s ɛ n t ʀ ə n"],
-  "zytozentrum": ["t s y t o t s ɛ n t ʀ ʊ m"],
-  "zytozentrums": ["t s y t o t s ɛ n t ʀ ʊ m s"]
-}
+<%-
+  (() => {
+    const lines = deJson.split(/\r?\n/).filter(Boolean);
+    const midIndex = lines.findIndex(line => line.startsWith('  "honig"'));
+    const sampleLineCount = 4;
+    return [
+      ...lines.slice(0, 1 + sampleLineCount),
+      '  ...',
+      ...lines.slice(midIndex, midIndex + sampleLineCount),
+      '  ...',
+      ...lines.slice(-(sampleLineCount + 1)),
+    ].join('\n');
+  })()
+%>
 ```
 
 Each data file contains a single large JSON object with key/value entries. Each entry contains the spelling of a word, followed by one or more pronunciations. The entries are ordered alphabetically by the spelling of the word, taking into account the sorting rules of the language in question.
@@ -82,27 +116,21 @@ The following is a shortened version of the German metadata file:
 
 *de-metadata.json*
 ```yaml
-{
-  "language": "de",
-  "languageName": "German",
-  "graphemes": ["’", "a", "ä", "b", "c", "d", "e", "é", "è", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "ö", "p", "q", "r", "s", "ß", "t", "u", "ü", "v", "w", "x", "y", "z"],
-  "phonemes": ["a", "ɐ", "b", "ç", "d", "e", "ə", "ɛ", "f", "ɡ", "h", "i", "ɪ", "j", "k", "l", "m", "n", "ŋ", "o", "ø", "œ", "ɔ", "p", "ʀ", "s", "ʃ", "t", "u", "ʊ", "v", "x", "y", "ʏ", "z", "ʒ"],
-  "graphemeDistribution": {
-    "e": 1304401,
-    "n": 628926,
-    "r": 609023,
-    "s": 578426,
-    "t": 564335,
-    ...
-  "phonemeDistribution": {
-    "t": 711284,
-    "n": 587828,
-    "ə": 558426,
-    "a": 491716,
-    "s": 470862,
-    ...
-  }
-}
+<%-
+  (() => {
+    const lines = deMetadataJson.split(/\r?\n/).filter(Boolean);
+    const graphemeDistributionIndex = lines.findIndex(line => line.startsWith('  "graphemeDistribution"'));
+    const phonemeDistributionIndex = lines.findIndex(line => line.startsWith('  "phonemeDistribution"'));
+    const sampleLineCount = 5;
+    return [
+      ...lines.slice(0, graphemeDistributionIndex + 1 + sampleLineCount),
+      '    ...',
+      ...lines.slice( phonemeDistributionIndex, phonemeDistributionIndex + 1 + sampleLineCount),
+      '    ...',
+      ...lines.slice(-2),
+    ].join('\n');
+  })()
+%>
 ```
 
 Let's consider each property in turn.
@@ -120,7 +148,7 @@ Let's consider each property in turn.
 
 In this section, I'll describe how you can run the extraction process yourself rather than using the existing dictionary files.
 
-WikiPronunciationDict is a Node.js package. Make sure you have a recent version of Node.js installed (I'm using version 15.7.0), then follow these steps:
+WikiPronunciationDict is a Node.js package. Make sure you have a recent version of Node.js installed (I'm using version <%- nodeVersion %>), then follow these steps:
 
 1. Clone the Git repository.
 1. From the *wiki-pronunciation-dict* directory, run `npm install` or -- if you're using Yarn -- `yarn` to install all library dependencies.
@@ -150,7 +178,44 @@ There are many language-specific editions of Wiktionary: the English edition ([e
 
 This has two implications. First, it is possible to create pronunciation dictionaries for many languages by parsing a single edition of Wiktionary. For existing projects that do this, [see below](#similar-projects). Second, in order to obtain the largest possible pronunciation vocabulary, it makes sense to parse multiple editions of Wiktionary and to combine the results. This is what WikiPronunciationDict does. The following chart shows the number of raw pronunciations per target language that WikiPronunciationDict extracts from the various editions of Wiktionary.
 
-![Source distribution](https://quickchart.io/chart?c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27English%27%2C%27French%27%2C%27German%27%2C%27Italian%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27en.wiktionary.org%27%2Cdata%3A%5B157347%2C75829%2C57052%2C30049%5D%7D%2C%7Blabel%3A%27fr.wiktionary.org%27%2Cdata%3A%5B53968%2C1634556%2C21867%2C73625%5D%7D%2C%7Blabel%3A%27de.wiktionary.org%27%2Cdata%3A%5B6447%2C12264%2C786186%2C3016%5D%7D%2C%7Blabel%3A%27it.wiktionary.org%27%2Cdata%3A%5B3174%2C18379%2C818%2C36433%5D%7D%5D%7D%2Coptions%3A%7Btitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27Source+distribution%27%7D%2Cscales%3A%7BxAxes%3A%5B%7Bstacked%3Atrue%7D%5D%2CyAxes%3A%5B%7Bstacked%3Atrue%2Cticks%3A%7Bdisplay%3Afalse%7D%7D%5D%7D%7D%7D&w=500&h=300&bkg=%23ffffff&f=svg)
+![Source distribution](<%-
+(() => {
+  const distribution = {};
+  for (const wordPronunciation of wordPronunciations) {
+    const key = wordPronunciation.sourceEdition + wordPronunciation.language;
+    distribution[key] = (distribution[key] ?? 0) + 1;
+  }
+  return new QuickChart()
+    .setConfig({
+      type: 'bar',
+      data: {
+        labels: languageNames,
+        datasets: Object.values(WiktionaryEdition).map(edition => ({
+          label: edition + '.wiktionary.org',
+          data: dictionaries.map(dictionary => {
+            const key = edition + dictionary.languageLookup.language;
+            return distribution[key] ?? 0;
+          }),
+        })),
+      },
+      options: {
+        title: {
+          display: true,
+          text: 'Source distribution',
+        },
+        scales: {
+          xAxes: [{ stacked: true }],
+          yAxes: [{
+            stacked: true,
+            ticks: { display: false },
+          }],
+        },
+      },
+    })
+    .setFormat('svg')
+    .getUrl();
+})()
+%>)
 
 As you can see, incorporating pronunciations from additional editions of Wiktionary drastically improved the vocabulary size for some languages, such as Italian.
 

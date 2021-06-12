@@ -11,6 +11,13 @@ import { pronunciationSourceWiktionaryIt } from './pronunciation-sources.ts/pron
 import { timeAction } from './utils/time-action';
 import { CachingPronunciationSource } from './pronunciation-sources.ts/caching-pronunciation-source';
 import { BlocklistingPronunciationSource } from './pronunciation-sources.ts/blocklisting-pronunciation-source';
+import ejs from 'ejs';
+import { readFileSync, writeFileSync } from 'fs';
+import { getLanguageName } from './language';
+import QuickChart from 'quickchart-js';
+import { WiktionaryEdition } from './wiktionary/wiktionary-edition';
+import { join as joinPaths } from 'path';
+import { dictionariesDir } from './directories';
 
 const pronunciationSources = [
   pronunciationSourceWiktionaryEn,
@@ -49,6 +56,28 @@ async function main() {
     timeAction('writing dictionary files', () =>
       writeDictionaryFiles(dictionaries),
     );
+
+    timeAction('writing README file', () => {
+      const template = readFileSync('README.ejs.md', 'utf-8');
+      writeFileSync(
+        'README.md',
+        ejs.render(template, {
+          dictionaries: dictionaries.filter(
+            dictionary => dictionary.languageLookup,
+          ),
+          wordPronunciations,
+          getLanguageName,
+          WiktionaryEdition,
+          QuickChart,
+          nodeVersion: process.versions.node.replace(/^v/, ''),
+          deJson: readFileSync(joinPaths(dictionariesDir, 'de.json'), 'utf-8'),
+          deMetadataJson: readFileSync(
+            joinPaths(dictionariesDir, 'de-metadata.json'),
+            'utf-8',
+          ),
+        }),
+      );
+    });
 
     timeAction('creating issue log files', () => createIssueLogFiles());
   } catch (error) {
