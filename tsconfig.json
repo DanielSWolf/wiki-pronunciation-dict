@@ -8,6 +8,7 @@
     "jsx": "react",
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "skipLibCheck": true
   }
 }

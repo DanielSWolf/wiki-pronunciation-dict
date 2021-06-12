@@ -1,5 +1,8 @@
+/cache/
 /data/
+/dictionaries/
 /downloads/
+/issue-logs/
 /node-modules/
 /stats/
 *.md
