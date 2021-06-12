@@ -1,6 +1,6 @@
 {
   "name": "wiki-pronunciation-dict",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pronunciation dictionaries for several languages, based on Wiktionary data.",
   "repository": "https://github.com/DanielSWolf/wiki-pronunciation-dict.git",
   "author": "Daniel Wolf <dwolf@dannad.de>",
