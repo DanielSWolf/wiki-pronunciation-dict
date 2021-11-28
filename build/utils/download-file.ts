@@ -17,7 +17,7 @@ interface FileDownloadOptions {
 }
 
 /**
- * Performs a streaming file download, optionally combined with streaming bzip2 decompression, and
+ * Performs a streaming file download, optionally combined with streaming decompression, and
  * stores the result with the specified target path. Shows a progress bar during download.
  *
  * The target file is created in one atomic operation, so that if the process is terminated, the

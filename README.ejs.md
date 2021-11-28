@@ -217,7 +217,7 @@ This has two implications. First, it is possible to create pronunciation diction
 })()
 %>)
 
-As you can see, incorporating pronunciations from additional editions of Wiktionary drastically improved the vocabulary size for some languages, such as Italian.
+As you can see, incorporating pronunciations from additional editions of Wiktionary drastically improves the vocabulary size for some languages, such as French.
 
 WikiPronunciationDict uses custom code to download the Wiktionary dump files, to parse the Wikitext code within, and to extract word pronunciations. This is complicated by the fact that each edition of Wiktionary uses a different template syntax and thus requires specialized extraction code.
 
